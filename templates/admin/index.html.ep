@@ -33,7 +33,7 @@
                 </thead>
                 <tbody>
                     % for my $conv (@$conversions) {
-                        <tr>
+                        <tr id="conv-<%= $conv->{id} %>">
                             <td class="sort-controls">
                                 <form method="post" action="/admin/conversions/reorder" style="display:inline">
                                     <input type="hidden" name="order" value="<%= $current_order %>">

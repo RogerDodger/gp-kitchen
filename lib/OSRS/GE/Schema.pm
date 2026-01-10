@@ -240,11 +240,14 @@ sub bulk_upsert_5m_prices {
 # Conversion pair methods
 sub create_conversion_pair {
     my ($self) = @_;
+    my ($max_order) = $self->dbh->selectrow_array(
+        'SELECT COALESCE(MAX(sort_order), -1) FROM conversions'
+    );
     my $sql = q{
-        INSERT INTO conversions (created_at, updated_at)
-        VALUES (strftime('%s', 'now'), strftime('%s', 'now'))
+        INSERT INTO conversions (sort_order, created_at, updated_at)
+        VALUES (?, strftime('%s', 'now'), strftime('%s', 'now'))
     };
-    $self->dbh->do($sql);
+    $self->dbh->do($sql, undef, $max_order + 1);
     return $self->dbh->last_insert_id(undef, undef, 'conversions', 'id');
 }
 

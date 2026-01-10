@@ -317,7 +317,7 @@ group {
                 }
             }
         }
-        $c->redirect_to('/admin');
+        $c->redirect_to("/admin#conv-$id");
     };
 
     # Delete conversion pair
