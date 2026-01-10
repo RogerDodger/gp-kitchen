@@ -1,0 +1,17 @@
+[Unit]
+Description=flippa Price Update Timer
+Requires=flippa-prices.service
+
+[Timer]
+# Run every 5 minutes
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+# Add some randomization to avoid hitting API at exact intervals
+RandomizedDelaySec=30
+
+# Persist timer state across reboots
+Persistent=true
+
+[Install]
+WantedBy=timers.target

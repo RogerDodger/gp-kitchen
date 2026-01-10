@@ -1,0 +1,269 @@
+% layout 'default';
+% my $item = stash('item');
+% title $item->{name};
+
+<div class="item-page">
+    <a href="/" class="btn btn-secondary">&larr; Back to Dashboard</a>
+
+    <div class="item-header">
+        <img src="https://static.runelite.net/cache/item/icon/<%= $item->{id} %>.png"
+             alt="<%= $item->{name} %>" class="item-icon-large"
+             onerror="this.style.display='none'">
+        <div class="item-title">
+            <h1><%= $item->{name} %></h1>
+            <p class="item-examine"><%= $item->{examine} // '' %></p>
+        </div>
+    </div>
+
+    <div class="item-grid">
+        <div class="item-prices card">
+            <h2>Current Prices</h2>
+            <div class="price-row">
+                <span class="price-label">Instant Buy (Ask):</span>
+                <span class="price-value"><%= format_gp($item->{high_price}) %></span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Instant Sell (Bid):</span>
+                <span class="price-value"><%= format_gp($item->{low_price}) %></span>
+            </div>
+            <div class="price-row">
+                <span class="price-label">Margin:</span>
+                % my $margin = ($item->{high_price} // 0) - ($item->{low_price} // 0);
+                <span class="price-value <%= $margin > 0 ? 'positive' : 'negative' %>">
+                    <%= format_gp($margin) %>
+                </span>
+            </div>
+            % if ($item->{avg_high_price} || $item->{avg_low_price}) {
+                <h3>5-Minute Averages</h3>
+                <div class="price-row">
+                    <span class="price-label">Avg Buy:</span>
+                    <span class="price-value"><%= format_gp($item->{avg_high_price}) %></span>
+                </div>
+                <div class="price-row">
+                    <span class="price-label">Avg Sell:</span>
+                    <span class="price-value"><%= format_gp($item->{avg_low_price}) %></span>
+                </div>
+            % }
+        </div>
+
+        <div class="item-info card">
+            <h2>Item Info</h2>
+            <div class="info-row">
+                <span class="info-label">Item ID:</span>
+                <span class="info-value"><%= $item->{id} %></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Members:</span>
+                <span class="info-value"><%= $item->{members} ? 'Yes' : 'No' %></span>
+            </div>
+            % if ($item->{ge_limit}) {
+                <div class="info-row">
+                    <span class="info-label">Buy Limit:</span>
+                    <span class="info-value"><%= $item->{ge_limit} %></span>
+                </div>
+            % }
+            % if ($item->{highalch}) {
+                <div class="info-row">
+                    <span class="info-label">High Alch:</span>
+                    <span class="info-value"><%= format_gp($item->{highalch}) %></span>
+                </div>
+            % }
+            % if ($item->{lowalch}) {
+                <div class="info-row">
+                    <span class="info-label">Low Alch:</span>
+                    <span class="info-value"><%= format_gp($item->{lowalch}) %></span>
+                </div>
+            % }
+            <div class="info-row">
+                <span class="info-label">Wiki:</span>
+                <span class="info-value">
+                    <a href="https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=<%= $item->{id} %>" target="_blank">
+                        View on Wiki
+                    </a>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="item-chart card">
+        <div class="chart-header">
+            <h2>Price History</h2>
+            <div class="chart-controls">
+                <select id="timestep-select">
+                    <option value="5m" selected>5 Minutes</option>
+                    <option value="1h">1 Hour</option>
+                    <option value="6h">6 Hours</option>
+                    <option value="24h">24 Hours</option>
+                </select>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="price-chart"></canvas>
+        </div>
+        <div id="chart-loading" class="chart-loading">Loading price history...</div>
+        <div id="chart-error" class="chart-error" style="display:none">Failed to load price history</div>
+    </div>
+</div>
+
+% content_for 'scripts' => begin
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script>
+const itemId = <%= $item->{id} %>;
+let chart = null;
+
+async function loadPriceHistory(timestep) {
+    const loading = document.getElementById('chart-loading');
+    const error = document.getElementById('chart-error');
+    loading.style.display = 'block';
+    error.style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/items/${itemId}/history?timestep=${timestep}`);
+        if (!response.ok) throw new Error('Failed to fetch');
+
+        const result = await response.json();
+        const data = result.data || [];
+
+        if (data.length === 0) {
+            throw new Error('No data');
+        }
+
+        renderChart(data, timestep);
+        loading.style.display = 'none';
+    } catch (err) {
+        console.error('Failed to load price history:', err);
+        loading.style.display = 'none';
+        error.style.display = 'block';
+    }
+}
+
+function renderChart(data, timestep) {
+    const ctx = document.getElementById('price-chart').getContext('2d');
+
+    // Prepare data points
+    const highPrices = [];
+    const lowPrices = [];
+
+    data.forEach(point => {
+        const timestamp = point.timestamp * 1000;
+        if (point.avgHighPrice) {
+            highPrices.push({ x: timestamp, y: point.avgHighPrice });
+        }
+        if (point.avgLowPrice) {
+            lowPrices.push({ x: timestamp, y: point.avgLowPrice });
+        }
+    });
+
+    // Destroy existing chart
+    if (chart) {
+        chart.destroy();
+    }
+
+    // Time unit based on timestep
+    const timeUnit = {
+        '5m': 'hour',
+        '1h': 'hour',
+        '6h': 'day',
+        '24h': 'day'
+    }[timestep] || 'day';
+
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Instant Buy (Ask)',
+                    data: highPrices,
+                    borderColor: '#f87171',
+                    backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                    tension: 0.1,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                },
+                {
+                    label: 'Instant Sell (Bid)',
+                    data: lowPrices,
+                    borderColor: '#4ade80',
+                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                    tension: 0.1,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e8e8e8'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatGp(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: timeUnit,
+                        tooltipFormat: 'MMM d, h:mm a',
+                        displayFormats: {
+                            hour: 'h:mm a',
+                            day: 'MMM d'
+                        }
+                    },
+                    ticks: {
+                        color: '#a8a8a8'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: '#a8a8a8',
+                        callback: function(value) {
+                            return formatGpCompact(value);
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function formatGp(num) {
+    if (num === null || num === undefined) return 'N/A';
+    return num.toLocaleString() + ' gp';
+}
+
+function formatGpCompact(num) {
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+// Initialize
+document.getElementById('timestep-select').addEventListener('change', function() {
+    loadPriceHistory(this.value);
+});
+
+loadPriceHistory('5m');
+</script>
+% end

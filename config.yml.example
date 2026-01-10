@@ -1,0 +1,12 @@
+# flippa Configuration
+# Copy to config.yml and customize
+
+admin_password: "changeme123"
+
+database:
+  path: "data/osrs_ge.db"
+
+session:
+  secret: "change_this_to_a_random_string_in_production"
+
+user_agent: "flippa/1.0 (contact@example.com)"

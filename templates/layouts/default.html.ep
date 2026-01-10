@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - flippa</title>
+    <link rel="icon" type="image/png" href="https://static.runelite.net/cache/item/icon/995.png">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">flippa</a>
+        </div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            % if (is_authenticated) {
+                <form method="post" action="/admin/update-prices" style="display:inline">
+                    <button type="submit" class="btn btn-small">Update Prices</button>
+                </form>
+                <a href="/admin">Admin</a>
+                <a href="/logout">Logout</a>
+            % } else {
+                <a href="/login">Login</a>
+            % }
+        </div>
+    </nav>
+
+    <main class="container">
+        <%= content %>
+    </main>
+
+    <footer class="footer">
+        <p>
+            % if (stash('stats') && stash('stats')->{total_items}) {
+                <%= stash('stats')->{total_items} %> items |
+                <%= stash('stats')->{items_with_high} // 0 %> with prices |
+            % }
+            Price data from <a href="https://prices.runescape.wiki" target="_blank">OSRS Wiki</a> |
+            Last update: <%= time_ago(stash('stats') ? stash('stats')->{last_update} : undef) %>
+        </p>
+    </footer>
+
+    <script>
+        // Auto-refresh price data every 5 minutes
+        setTimeout(function() {
+            location.reload();
+        }, 300000);
+    </script>
+
+    <%= content_for 'scripts' %>
+</body>
+</html>
