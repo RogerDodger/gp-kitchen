@@ -272,6 +272,23 @@ sub delete_conversion_pair {
     $self->dbh->do('DELETE FROM conversions WHERE id = ?', undef, $id);
 }
 
+sub toggle_conversion_active {
+    my ($self, $id) = @_;
+    $self->dbh->do(q{
+        UPDATE conversions SET active = NOT active, updated_at = strftime('%s', 'now')
+        WHERE id = ?
+    }, undef, $id);
+}
+
+sub reorder_conversions {
+    my ($self, $ids) = @_;
+    my $order = 0;
+    for my $id (@$ids) {
+        $self->dbh->do('UPDATE conversions SET sort_order = ? WHERE id = ?',
+            undef, $order++, $id);
+    }
+}
+
 sub get_conversion_pair {
     my ($self, $id) = @_;
     my $sql = 'SELECT * FROM conversions WHERE id = ?';

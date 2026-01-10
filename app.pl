@@ -293,17 +293,31 @@ group {
         $c->render(template => 'admin/edit_conversion');
     };
 
-    # Update conversion pair
-    post '/conversions/:id' => sub ($c) {
+    # Toggle conversion active status
+    post '/conversions/:id/toggle' => sub ($c) {
         my $id = $c->param('id');
-        my $data = {
-            active      => $c->param('active') ? 1 : 0,
-            sort_order  => $c->param('sort_order') // 0,
-        };
+        $schema->toggle_conversion_active($id);
+        $c->redirect_to('/admin');
+    };
 
-        $schema->update_conversion_pair($id, $data);
-        $c->flash(success => 'Conversion updated');
-        $c->redirect_to("/admin/conversions/$id/edit");
+    # Reorder conversions
+    post '/conversions/reorder' => sub ($c) {
+        my $order = $c->param('order') // '';
+        my $id = $c->param('id');
+        my $dir = $c->param('dir');
+
+        my @ids = grep { /^\d+$/ } split /,/, $order;
+        if (@ids && $id && $dir =~ /^(up|down)$/) {
+            my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
+            if (defined $idx) {
+                my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
+                if ($swap_idx >= 0 && $swap_idx <= $#ids) {
+                    @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
+                    $schema->reorder_conversions(\@ids);
+                }
+            }
+        }
+        $c->redirect_to('/admin');
     };
 
     # Delete conversion pair

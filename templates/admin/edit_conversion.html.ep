@@ -15,26 +15,6 @@
 
     % my $conv = stash('conv');
 
-    <form method="post" action="/admin/conversions/<%= $conv->{id} %>" class="conversion-form">
-        <div class="form-section">
-            <h2>Settings</h2>
-
-            <div class="form-group">
-                <label for="sort_order">Sort Order</label>
-                <input type="number" id="sort_order" name="sort_order" value="<%= $conv->{sort_order} // 0 %>">
-            </div>
-
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" name="active" value="1" <%= $conv->{active} ? 'checked' : '' %>>
-                    Active (show on dashboard)
-                </label>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
-    </form>
-
     <div class="form-section">
         <h2>Inputs (Items you BUY)</h2>
         <p class="hint">These are the items you purchase to make the conversion. Their instant-buy (ask) price is used.</p>

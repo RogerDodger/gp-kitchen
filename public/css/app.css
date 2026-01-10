@@ -60,6 +60,8 @@ a:hover {
     background: var(--bg-secondary);
     padding: 0.875rem 2rem;
     display: flex;
+    flex-flow: row wrap;
+    gap: 0.5rem 2rem;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border);
@@ -79,7 +81,8 @@ a:hover {
 
 .nav-links {
     display: flex;
-    gap: 1.5rem;
+    flex-flow: row wrap;
+    gap: 0.25rem 1.5rem;
 }
 
 .nav-links a {
@@ -163,6 +166,11 @@ a:hover {
 .btn-small {
     padding: 0.25rem 0.625rem;
     font-size: 0.75rem;
+}
+
+.btn-active {
+    background: var(--positive);
+    color: white;
 }
 
 /* Forms */
@@ -1031,35 +1039,5 @@ a.item-name:hover {
 
     .summary-item {
         justify-content: space-between;
-    }
-}
-
-/* Responsive - General */
-@media (max-width: 768px) {
-    .navbar {
-        flex-direction: column;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-    }
-
-    .container {
-        padding: 1rem;
-    }
-
-    .new-conversion-form {
-        flex-direction: column;
-    }
-
-    .add-item-form form {
-        flex-direction: column;
-    }
-
-    .item-header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .price-mode-toggle {
-        flex-wrap: wrap;
     }
 }
