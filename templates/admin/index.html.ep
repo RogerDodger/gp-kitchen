@@ -27,6 +27,7 @@
                         <th>Sort</th>
                         <th>Inputs</th>
                         <th>Outputs</th>
+                        <th>Live</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -65,6 +66,13 @@
                                 % } else {
                                     <em>None</em>
                                 % }
+                            </td>
+                            <td>
+                                <form method="post" action="/admin/conversions/<%= $conv->{id} %>/toggle-live" style="display:inline">
+                                    <button type="submit" class="btn btn-small <%= $conv->{live} ? 'btn-live' : '' %>">
+                                        <%= $conv->{live} ? 'Live' : '-' %>
+                                    </button>
+                                </form>
                             </td>
                             <td>
                                 <form method="post" action="/admin/conversions/<%= $conv->{id} %>/toggle" style="display:inline">

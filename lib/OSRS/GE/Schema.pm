@@ -283,6 +283,14 @@ sub toggle_conversion_active {
     }, undef, $id);
 }
 
+sub toggle_conversion_live {
+    my ($self, $id) = @_;
+    $self->dbh->do(q{
+        UPDATE conversions SET live = NOT live, updated_at = strftime('%s', 'now')
+        WHERE id = ?
+    }, undef, $id);
+}
+
 sub reorder_conversions {
     my ($self, $ids) = @_;
     my $order = 0;
@@ -333,7 +341,7 @@ sub get_all_conversions {
         LEFT JOIN conversion_profits profit_data ON cp.id = profit_data.id
     };
     $sql .= ' WHERE cp.active = 1' if $active_only;
-    $sql .= ' ORDER BY cp.sort_order, cp.id';
+    $sql .= ' ORDER BY cp.live DESC, cp.sort_order, cp.id';
 
     my $pairs = $self->dbh->selectall_arrayref($sql, { Slice => {} });
 

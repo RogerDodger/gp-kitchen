@@ -300,6 +300,13 @@ group {
         $c->redirect_to('/admin');
     };
 
+    # Toggle conversion live status
+    post '/conversions/:id/toggle-live' => sub ($c) {
+        my $id = $c->param('id');
+        $schema->toggle_conversion_live($id);
+        $c->redirect_to('/admin');
+    };
+
     # Reorder conversions
     post '/conversions/reorder' => sub ($c) {
         my $order = $c->param('order') // '';

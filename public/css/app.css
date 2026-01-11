@@ -173,6 +173,11 @@ a:hover {
     color: white;
 }
 
+.btn-live {
+    background: var(--gold);
+    color: white;
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 1rem;

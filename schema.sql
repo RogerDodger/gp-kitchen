@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS item_prices (
 CREATE TABLE IF NOT EXISTS conversions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     active INTEGER DEFAULT 1,
+    live INTEGER DEFAULT 0,
     sort_order INTEGER DEFAULT 0,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
