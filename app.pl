@@ -371,6 +371,7 @@ group {
             $schema->add_conversion_input($pair_id, $item_id, $quantity);
         }
 
+        $c->flash(restore_scroll => 1);
         $c->redirect_to("/admin/conversions/$pair_id/edit");
     };
 
@@ -380,6 +381,7 @@ group {
         my $input_id = $c->param('input_id');
 
         $schema->remove_conversion_input($input_id);
+        $c->flash(restore_scroll => 1);
         $c->redirect_to("/admin/conversions/$pair_id/edit");
     };
 
@@ -393,6 +395,7 @@ group {
             $schema->add_conversion_output($pair_id, $item_id, $quantity);
         }
 
+        $c->flash(restore_scroll => 1);
         $c->redirect_to("/admin/conversions/$pair_id/edit");
     };
 
@@ -402,6 +405,7 @@ group {
         my $output_id = $c->param('output_id');
 
         $schema->remove_conversion_output($output_id);
+        $c->flash(restore_scroll => 1);
         $c->redirect_to("/admin/conversions/$pair_id/edit");
     };
 };
