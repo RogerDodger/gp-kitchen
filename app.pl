@@ -297,6 +297,7 @@ group {
     post '/conversions/:id/toggle' => sub ($c) {
         my $id = $c->param('id');
         $schema->toggle_conversion_active($id);
+        $c->flash(restore_scroll => 1);
         $c->redirect_to('/admin');
     };
 
@@ -304,7 +305,8 @@ group {
     post '/conversions/:id/toggle-live' => sub ($c) {
         my $id = $c->param('id');
         $schema->toggle_conversion_live($id);
-        $c->redirect_to("/admin#conv-$id");
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to('/admin');
     };
 
     # Reorder conversions
@@ -332,7 +334,8 @@ group {
                 }
             }
         }
-        $c->redirect_to("/admin#conv-$id");
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to('/admin');
     };
 
     # Delete conversion pair

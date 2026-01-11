@@ -41,7 +41,21 @@
         </p>
     </footer>
 
+    % if (flash 'restore_scroll') {
     <script>
+        (function() {
+            var y = localStorage.getItem('scrollY');
+            if (y) window.scrollTo(0, parseInt(y, 10));
+        })();
+    </script>
+    % }
+
+    <script>
+        // Save scroll position regularly
+        setInterval(function() {
+            localStorage.setItem('scrollY', window.scrollY);
+        }, 200);
+
         // Auto-refresh price data every 5 minutes
         setTimeout(function() {
             location.reload();
