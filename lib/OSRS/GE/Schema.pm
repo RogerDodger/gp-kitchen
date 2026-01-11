@@ -285,10 +285,49 @@ sub toggle_conversion_active {
 
 sub toggle_conversion_live {
     my ($self, $id) = @_;
+
+    # Get current state
+    my $conv = $self->dbh->selectrow_hashref(
+        'SELECT id, live FROM conversions WHERE id = ?', undef, $id
+    );
+    return unless $conv;
+
+    my $new_live = $conv->{live} ? 0 : 1;
+
+    # Get all conversions in current visual order
+    my $all = $self->dbh->selectall_arrayref(
+        'SELECT id, live FROM conversions ORDER BY live DESC, sort_order, id',
+        { Slice => {} }
+    );
+
+    # Remove the toggled conversion from the list
+    my @others = grep { $_->{id} != $id } @$all;
+
+    # Find insertion point
+    my @new_order;
+    if ($new_live) {
+        # Toggling ON: insert at bottom of live section
+        my @live = grep { $_->{live} } @others;
+        my @dormant = grep { !$_->{live} } @others;
+        @new_order = (@live, $id, @dormant);
+    } else {
+        # Toggling OFF: insert at top of dormant section
+        my @live = grep { $_->{live} } @others;
+        my @dormant = grep { !$_->{live} } @others;
+        @new_order = (@live, $id, @dormant);
+    }
+
+    # Extract just the IDs
+    @new_order = map { ref($_) ? $_->{id} : $_ } @new_order;
+
+    # Update the live status
     $self->dbh->do(q{
-        UPDATE conversions SET live = NOT live, updated_at = strftime('%s', 'now')
+        UPDATE conversions SET live = ?, updated_at = strftime('%s', 'now')
         WHERE id = ?
-    }, undef, $id);
+    }, undef, $new_live, $id);
+
+    # Renumber all
+    $self->reorder_conversions(\@new_order);
 }
 
 sub reorder_conversions {
@@ -341,7 +380,7 @@ sub get_all_conversions {
         LEFT JOIN conversion_profits profit_data ON cp.id = profit_data.id
     };
     $sql .= ' WHERE cp.active = 1' if $active_only;
-    $sql .= ' ORDER BY cp.live DESC, cp.sort_order, cp.id';
+    $sql .= ' ORDER BY cp.sort_order, cp.id';
 
     my $pairs = $self->dbh->selectall_arrayref($sql, { Slice => {} });
 

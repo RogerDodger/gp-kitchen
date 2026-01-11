@@ -304,7 +304,7 @@ group {
     post '/conversions/:id/toggle-live' => sub ($c) {
         my $id = $c->param('id');
         $schema->toggle_conversion_live($id);
-        $c->redirect_to('/admin');
+        $c->redirect_to("/admin#conv-$id");
     };
 
     # Reorder conversions
@@ -319,8 +319,16 @@ group {
             if (defined $idx) {
                 my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
                 if ($swap_idx >= 0 && $swap_idx <= $#ids) {
-                    @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
-                    $schema->reorder_conversions(\@ids);
+                    # Check if both items have same live status
+                    my $live_status = $schema->dbh->selectall_hashref(
+                        'SELECT id, live FROM conversions WHERE id IN (?, ?)',
+                        'id', undef, $ids[$idx], $ids[$swap_idx]
+                    );
+                    my $same_live = $live_status->{$ids[$idx]}{live} == $live_status->{$ids[$swap_idx]}{live};
+                    if ($same_live) {
+                        @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
+                        $schema->reorder_conversions(\@ids);
+                    }
                 }
             }
         }
