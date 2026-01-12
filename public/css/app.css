@@ -267,10 +267,11 @@ select:focus {
 
 /* Price Mode Toggle */
 .price-mode-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 1rem;
+    margin-right: 1rem;
     padding: 0.75rem 1rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -1270,18 +1271,17 @@ a.item-name:hover {
         display: none;
     }
 
-    /* Adjust grid to fewer columns - filler columns absorb extra space */
+    /* Adjust grid to fewer columns - content-sized, not full width */
     .recipes-grid {
+        width: fit-content;
         grid-template-columns:
             [input-name] auto
             [input-price] auto
             [invol] auto
-            [fill1] 1fr
             [arrow] auto
             [output-name] auto
             [output-price] auto
-            [outvol] auto
-            [fill2] 1fr;
+            [outvol] auto;
     }
 
     /* Arrow separator between inputs and outputs */
@@ -1329,12 +1329,25 @@ a.item-name:hover {
         font-weight: 600;
     }
 
-    .price-mode-toggle .mode-hint {
-        display: none;
+    /* Make controls fit content to match table width */
+    .dashboard-actions {
+        width: fit-content;
+    }
+
+    .preset-section-header {
+        width: fit-content;
+    }
+
+    .preset-recipes-wrapper {
+        width: fit-content;
+    }
+
+    .preset-expand-btn {
+        width: 100%;
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 940px) {
     /* Hide vol columns and separate price columns */
     .recipes-grid .col-vol,
     .recipes-grid .hdr-vol,
@@ -1369,6 +1382,10 @@ a.item-name:hover {
         grid-template-rows: auto auto;
         gap: 0 0.5rem;
         align-items: start;
+    }
+
+    .price-mode-toggle .mode-hint {
+        display: none;
     }
 
     .item-icon {
@@ -1408,7 +1425,22 @@ a.item-name:hover {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 660px) {
+    /* Reduce padding on main containers */
+    .navbar {
+        padding: 0.75rem 1rem;
+    }
+
+    .container {
+        padding: 1rem;
+    }
+
+    .guest-banner {
+        padding: 0.5rem 1rem;
+    }
+}
+
+@media (max-width: 540px) {
     /* Stack inputs/outputs vertically, summary below */
     .recipes-grid {
         display: block;

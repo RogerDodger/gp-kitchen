@@ -11,18 +11,7 @@
         </div>
     % }
 
-    <div class="price-mode-toggle">
-        <label>Price Mode:</label>
-        <button type="button" class="btn btn-toggle mode-toggle" data-mode="instant">Instant</button>
-        <button type="button" class="btn btn-toggle mode-toggle active" data-mode="patient">Patient</button>
-    </div>
-
-    <div class="price-mode-toggle">
-        <label>Volume:</label>
-        <button type="button" class="btn btn-toggle vol-toggle" data-vol="5m">5m</button>
-        <button type="button" class="btn btn-toggle vol-toggle active" data-vol="4h">4h</button>
-        <button type="button" class="btn btn-toggle vol-toggle" data-vol="24h">24h</button>
-    </div>
+    %= include 'partials/_price_vol_toggles'
 
     % my $presets = stash('presets') // [];
     % if (@$presets) {
@@ -111,7 +100,7 @@
 .preset-expand-btn {
     display: block;
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.2rem 0.5rem;
     margin-top: 0;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -123,7 +112,6 @@
 }
 .preset-expand-btn:hover {
     background: var(--bg-tertiary);
-    color: var(--text);
 }
 .preset-recipes-wrapper .recipes-grid {
     border-radius: 8px 8px 0 0;
