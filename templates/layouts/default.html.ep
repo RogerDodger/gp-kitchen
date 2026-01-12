@@ -35,7 +35,7 @@
 
     % if (is_guest && current_user) {
         <div class="guest-banner">
-            You're using a guest account. <a href="/register">Save your account</a> to access your recipes from any device.
+            You're using a guest account. <a href="/register">Save your account</a> to not lose your dashboard.
         </div>
     % }
 
