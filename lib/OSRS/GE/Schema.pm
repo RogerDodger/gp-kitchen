@@ -971,13 +971,4 @@ sub import_preset {
     return 1;
 }
 
-sub has_imported_preset {
-    my ($self, $preset_id, $user_id) = @_;
-    my ($count) = $self->dbh->selectrow_array(
-        'SELECT 1 FROM preset_imports WHERE preset_id = ? AND user_id = ?',
-        undef, $preset_id, $user_id
-    );
-    return $count;
-}
-
 1;

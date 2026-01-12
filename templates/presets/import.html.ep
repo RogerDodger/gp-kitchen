@@ -5,7 +5,7 @@
     <h1>Import from "<%= stash('preset')->{name} %>"</h1>
     <p class="page-description">Select which recipes to import to your dashboard.</p>
 
-    <a href="/presets/<%= stash('preset')->{id} %>" class="btn btn-secondary">&larr; Back to Preset</a>
+    <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
 
     % my $recipes = stash('recipes') // [];
     % if (@$recipes) {

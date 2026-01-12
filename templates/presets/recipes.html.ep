@@ -12,7 +12,6 @@
     % }
 
     <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
-    <a href="/presets/<%= stash('preset')->{id} %>" class="btn btn-secondary">View Preset</a>
 
     <div class="admin-section">
         <h2>Preset Details</h2>

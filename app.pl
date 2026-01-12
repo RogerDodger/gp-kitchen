@@ -599,28 +599,6 @@ get '/presets' => sub ($c) {
     $c->render(template => 'presets/index');
 };
 
-# View single preset
-get '/presets/:id' => sub ($c) {
-    my $id = $c->param('id');
-    my $preset = $schema->get_preset($id);
-    return $c->render(text => 'Preset not found', status => 404) unless $preset;
-
-    my $recipes = $schema->get_preset_recipes($id);
-    my $stats = $schema->get_price_stats;
-
-    # Check if user has imported this preset
-    my $user = $c->current_user;
-    my $has_imported = $user ? $schema->has_imported_preset($id, $user->{id}) : 0;
-
-    $c->stash(
-        preset => $preset,
-        recipes => $recipes,
-        stats => $stats,
-        has_imported => $has_imported,
-    );
-    $c->render(template => 'presets/show');
-};
-
 # Import selection page
 get '/presets/:id/import' => sub ($c) {
     my $id = $c->param('id');

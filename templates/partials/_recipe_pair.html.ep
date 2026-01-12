@@ -1,0 +1,191 @@
+% my $recipe = stash('recipe');
+% my $modes = compute_recipe_modes($recipe);
+% my $inputs = $recipe->{inputs};
+% my $outputs = $recipe->{outputs};
+<div class="recipe-pair">
+    <div class="pair-input-names">
+        % for my $input (@$inputs) {
+            % my $is_coins = $input->{item_id} == 995;
+            <div class="item-row">
+                <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                     alt="<%= $input->{name} %>" class="item-icon"
+                     onerror="this.style.display='none'">
+                <a href="/item/<%= $input->{item_id} %>" class="item-name">
+                    <%= $is_coins ? '' : ($input->{quantity} > 1 ? $input->{quantity} . 'x ' : '') %><%= $input->{name} %>
+                </a>
+                <span class="item-price">
+                    % if ($is_coins) {
+                        <span class="price-value"><%= format_gp($input->{quantity}) %></span>
+                    % } else {
+                        <span class="instant-only">
+                            <span class="price-value"><%= format_gp($input->{high_price}) %></span>
+                            <span class="price-meta"><%= time_ago($input->{high_time}) %></span>
+                            <span class="item-vol"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_high}) %></span></span>
+                        </span>
+                        <span class="patient-only">
+                            <span class="price-value"><%= format_gp($input->{low_price}) %></span>
+                            <span class="price-meta"><%= time_ago($input->{low_time}) %></span>
+                            <span class="item-vol"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_low}) %></span></span>
+                        </span>
+                    % }
+                </span>
+            </div>
+        % }
+    </div>
+    <div class="pair-input-prices">
+        % for my $input (@$inputs) {
+            % my $is_coins = $input->{item_id} == 995;
+            <div class="price-row">
+                % if ($is_coins) {
+                    <span class="price-value"><%= format_gp($input->{quantity}) %></span>
+                % } else {
+                    <span class="instant-only">
+                        <span class="price-value"><%= format_gp($input->{high_price}) %></span>
+                        <span class="price-meta"><%= time_ago($input->{high_time}) %></span>
+                        <span class="item-vol"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_high}) %></span></span>
+                    </span>
+                    <span class="patient-only">
+                        <span class="price-value"><%= format_gp($input->{low_price}) %></span>
+                        <span class="price-meta"><%= time_ago($input->{low_time}) %></span>
+                        <span class="item-vol"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_low}) %></span></span>
+                    </span>
+                % }
+            </div>
+        % }
+    </div>
+    <div class="pair-input-vol col-vol">
+        % for my $input (@$inputs) {
+            % my $is_coins = $input->{item_id} == 995;
+            <div class="vol-row">
+                % if ($is_coins) {
+                    <span class="vol-na">-</span>
+                % } else {
+                    <span class="instant-only"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_high}) %></span></span>
+                    <span class="patient-only"><span class="vol vol-5m"><%= format_vol($input->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($input->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($input->{vol_24h_low}) %></span></span>
+                % }
+            </div>
+        % }
+    </div>
+    <div class="pair-arrow"></div>
+    <div class="pair-cost col-cost">
+        <span class="instant-only"><%= format_gp($modes->{instant}{input_cost}) %></span>
+        <span class="patient-only"><%= format_gp($modes->{patient}{input_cost}) %></span>
+    </div>
+    <div class="pair-output-names">
+        % for my $output (@$outputs) {
+            % my $is_coins = $output->{item_id} == 995;
+            <div class="item-row">
+                <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                     alt="<%= $output->{name} %>" class="item-icon"
+                     onerror="this.style.display='none'">
+                <a href="/item/<%= $output->{item_id} %>" class="item-name">
+                    <%= $is_coins ? '' : ($output->{quantity} > 1 ? $output->{quantity} . 'x ' : '') %><%= $output->{name} %>
+                </a>
+                <span class="item-price">
+                    % if ($is_coins) {
+                        <span class="price-value"><%= format_gp($output->{quantity}) %></span>
+                    % } else {
+                        <span class="instant-only">
+                            <span class="price-value"><%= format_gp($output->{low_price}) %></span>
+                            <span class="price-meta"><%= time_ago($output->{low_time}) %></span>
+                            <span class="item-vol"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_low}) %></span></span>
+                        </span>
+                        <span class="patient-only">
+                            <span class="price-value"><%= format_gp($output->{high_price}) %></span>
+                            <span class="price-meta"><%= time_ago($output->{high_time}) %></span>
+                            <span class="item-vol"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_high}) %></span></span>
+                        </span>
+                    % }
+                </span>
+            </div>
+        % }
+    </div>
+    <div class="pair-output-prices">
+        % for my $output (@$outputs) {
+            % my $is_coins = $output->{item_id} == 995;
+            <div class="price-row">
+                % if ($is_coins) {
+                    <span class="price-value"><%= format_gp($output->{quantity}) %></span>
+                % } else {
+                    <span class="instant-only">
+                        <span class="price-value"><%= format_gp($output->{low_price}) %></span>
+                        <span class="price-meta"><%= time_ago($output->{low_time}) %></span>
+                        <span class="item-vol"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_low}) %></span></span>
+                    </span>
+                    <span class="patient-only">
+                        <span class="price-value"><%= format_gp($output->{high_price}) %></span>
+                        <span class="price-meta"><%= time_ago($output->{high_time}) %></span>
+                        <span class="item-vol"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_high}) %></span></span>
+                    </span>
+                % }
+            </div>
+        % }
+    </div>
+    <div class="pair-output-vol col-vol">
+        % for my $output (@$outputs) {
+            % my $is_coins = $output->{item_id} == 995;
+            <div class="vol-row">
+                % if ($is_coins) {
+                    <span class="vol-na">-</span>
+                % } else {
+                    <span class="instant-only"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_low}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_low}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_low}) %></span></span>
+                    <span class="patient-only"><span class="vol vol-5m"><%= format_vol($output->{vol_5m_high}) %></span><span class="vol vol-4h"><%= format_vol($output->{vol_4h_high}) %></span><span class="vol vol-24h"><%= format_vol($output->{vol_24h_high}) %></span></span>
+                % }
+            </div>
+        % }
+    </div>
+    <div class="pair-revenue col-revenue">
+        <span class="instant-only"><%= format_gp($modes->{instant}{output_revenue}) %></span>
+        <span class="patient-only"><%= format_gp($modes->{patient}{output_revenue}) %></span>
+    </div>
+    <div class="pair-tax col-tax">
+        <span class="instant-only"><%= format_gp($modes->{instant}{total_tax}) %></span>
+        <span class="patient-only"><%= format_gp($modes->{patient}{total_tax}) %></span>
+    </div>
+    <div class="pair-profit col-profit">
+        <span class="instant-only <%= $modes->{instant}{profit} > 0 ? 'positive' : ($modes->{instant}{profit} < 0 ? 'negative' : '') %>"><%= format_gp($modes->{instant}{profit}) %></span>
+        <span class="patient-only <%= $modes->{patient}{profit} > 0 ? 'positive' : ($modes->{patient}{profit} < 0 ? 'negative' : '') %>"><%= format_gp($modes->{patient}{profit}) %></span>
+    </div>
+    <div class="pair-roi col-roi">
+        <span class="instant-only <%= $modes->{instant}{roi_percent} > 0 ? 'positive' : ($modes->{instant}{roi_percent} < 0 ? 'negative' : '') %>"><%= $modes->{instant}{roi_percent} %>%</span>
+        <span class="patient-only <%= $modes->{patient}{roi_percent} > 0 ? 'positive' : ($modes->{patient}{roi_percent} < 0 ? 'negative' : '') %>"><%= $modes->{patient}{roi_percent} %>%</span>
+    </div>
+    <!-- Summary row for responsive layouts -->
+    <div class="pair-summary">
+        <div class="summary-item">
+            <span class="summary-label">Inputs</span>
+            <span class="summary-value">
+                <span class="instant-only"><%= format_gp($modes->{instant}{input_cost}) %></span>
+                <span class="patient-only"><%= format_gp($modes->{patient}{input_cost}) %></span>
+            </span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Outputs</span>
+            <span class="summary-value">
+                <span class="instant-only"><%= format_gp($modes->{instant}{output_revenue}) %></span>
+                <span class="patient-only"><%= format_gp($modes->{patient}{output_revenue}) %></span>
+            </span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Tax</span>
+            <span class="summary-value">
+                <span class="instant-only"><%= format_gp($modes->{instant}{total_tax}) %></span>
+                <span class="patient-only"><%= format_gp($modes->{patient}{total_tax}) %></span>
+            </span>
+        </div>
+        <div class="summary-item summary-profit">
+            <span class="summary-label">Profit</span>
+            <span class="summary-value">
+                <span class="instant-only <%= $modes->{instant}{profit} > 0 ? 'positive' : ($modes->{instant}{profit} < 0 ? 'negative' : '') %>"><%= format_gp($modes->{instant}{profit}) %></span>
+                <span class="patient-only <%= $modes->{patient}{profit} > 0 ? 'positive' : ($modes->{patient}{profit} < 0 ? 'negative' : '') %>"><%= format_gp($modes->{patient}{profit}) %></span>
+            </span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">ROI</span>
+            <span class="summary-value">
+                <span class="instant-only <%= $modes->{instant}{roi_percent} > 0 ? 'positive' : ($modes->{instant}{roi_percent} < 0 ? 'negative' : '') %>"><%= $modes->{instant}{roi_percent} %>%</span>
+                <span class="patient-only <%= $modes->{patient}{roi_percent} > 0 ? 'positive' : ($modes->{patient}{roi_percent} < 0 ? 'negative' : '') %>"><%= $modes->{patient}{roi_percent} %>%</span>
+            </span>
+        </div>
+    </div>
+</div>

@@ -73,13 +73,13 @@ if ($latest_only) {
                 $last_volume_update = $now;
             }
 
-            # Price update every 30 seconds
+            # Price update every 10 seconds
             log_msg("Updating prices...");
             eval { $updater->update_latest };
             log_msg("ERROR: $@") if $@;
         }
 
-        sleep 30;
+        sleep 10;
     }
 } else {
     # Single run mode

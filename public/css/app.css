@@ -312,33 +312,7 @@ select:focus {
     margin-left: 0.5rem;
 }
 
-/* Conversions Grid */
-.conversions-grid {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    font-size: 1rem;
-    display: grid;
-    grid-template-columns:
-        [input] minmax(150px, 2fr)
-        [invol] auto
-        [cost] auto
-        [output] minmax(150px, 2fr)
-        [outvol] auto
-        [revenue] auto
-        [tax] auto
-        [profit] auto
-        [roi] auto;
-}
-
-.grid-header,
-.conversion-pair {
-    display: grid;
-    grid-template-columns: subgrid;
-    grid-column: 1 / -1;
-}
-
+/* Grid column alignment - shared */
 .grid-header {
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border);
@@ -352,42 +326,6 @@ select:focus {
     letter-spacing: 0.025em;
     color: var(--text-primary);
 }
-
-.conversion-pair {
-    border-top: 2px solid var(--border-dark);
-    align-items: center;
-}
-
-.conversion-pair:first-of-type {
-    border-top: none;
-}
-
-.conversion-pair > div {
-    padding: 0.5rem 0.75rem;
-    min-width: 0;
-}
-
-/* Named grid columns */
-.pair-inputs { grid-column: input; }
-.pair-input-vol { grid-column: invol; }
-.pair-cost { grid-column: cost; }
-.pair-outputs { grid-column: output; }
-.pair-output-vol { grid-column: outvol; }
-.pair-revenue { grid-column: revenue; }
-.pair-tax { grid-column: tax; }
-.pair-profit { grid-column: profit; }
-.pair-roi { grid-column: roi; }
-
-/* Header columns - use nth-child for vol columns */
-.hdr-input { grid-column: input; }
-.hdr-cost { grid-column: cost; }
-.hdr-output { grid-column: output; }
-.hdr-revenue { grid-column: revenue; }
-.hdr-tax { grid-column: tax; }
-.hdr-profit { grid-column: profit; }
-.hdr-roi { grid-column: roi; }
-.grid-header > div:nth-child(2) { grid-column: invol; }
-.grid-header > div:nth-child(5) { grid-column: outvol; }
 
 /* Header column alignment */
 .grid-header .col-vol,
@@ -407,6 +345,15 @@ select:focus {
     justify-content: flex-end;
 }
 
+/* Price rows (separate column for prices) */
+.price-row {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+}
+
 .vol-na {
     color: var(--text-secondary);
 }
@@ -415,6 +362,11 @@ select:focus {
 .pair-summary {
     display: none;
     grid-column: 1 / -1;
+}
+
+/* Arrow separator - hidden by default, shown at 1400px */
+.pair-arrow {
+    display: none;
 }
 
 .item-row {
@@ -450,20 +402,32 @@ a.item-name:hover {
     text-decoration: underline;
 }
 
+/* .item-price is inline version (for small screens), hidden by default */
 .item-price {
+    display: none;
     color: var(--text-secondary);
     font-size: 0.9rem;
     text-align: right;
     line-height: 1.3;
 }
 
-.item-price .price-value {
+/* .price-row is column version (for large screens) */
+.price-row {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-align: right;
+    line-height: 1.3;
+}
+
+.item-price .price-value,
+.price-row .price-value {
     display: block;
     font-weight: 500;
     color: var(--text-primary);
 }
 
-.item-price .price-meta {
+.item-price .price-meta,
+.price-row .price-meta {
     display: block;
     font-size: 0.85rem;
 }
@@ -846,7 +810,7 @@ a.item-name:hover {
     font-weight: 600;
 }
 
-.price-row,
+.card .price-row,
 .info-row {
     display: flex;
     justify-content: space-between;
@@ -854,7 +818,7 @@ a.item-name:hover {
     font-size: 0.875rem;
 }
 
-.price-label,
+.card .price-label,
 .info-label {
     color: var(--text-secondary);
 }
@@ -913,161 +877,7 @@ a.item-name:hover {
     color: var(--negative);
 }
 
-/* 2-row layout per conversion */
-@media (max-width: 1400px) {
-    .conversions-grid {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .grid-header {
-        display: none;
-    }
-
-    .conversion-pair {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr auto;
-        grid-template-areas:
-            "input invol output outvol"
-            "financials financials financials financials";
-        gap: 0.25rem 0.75rem;
-        padding: 0.75rem;
-    }
-
-    .pair-inputs { grid-area: input; }
-    .pair-input-vol { grid-area: invol; align-self: center; }
-    .pair-outputs { grid-area: output; }
-    .pair-output-vol { grid-area: outvol; align-self: center; }
-
-    .pair-cost,
-    .pair-revenue,
-    .pair-tax,
-    .pair-profit,
-    .pair-roi {
-        display: none;
-    }
-
-    .pair-summary {
-        grid-area: financials;
-        display: flex;
-        gap: 0.5rem 1.5rem;
-        justify-content: flex-start;
-        padding-bottom: 0;
-        padding-top: 0.5rem;
-        border-top: 1px solid var(--border);
-        margin-top: 0.25rem;
-    }
-
-    .summary-item {
-        display: flex;
-        gap: 0.5rem;
-        align-items: baseline;
-    }
-
-    .summary-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        color: var(--text-secondary);
-    }
-
-    .summary-value {
-        font-family: 'SF Mono', 'Consolas', monospace;
-        font-size: 0.9rem;
-    }
-
-    .summary-profit .summary-value {
-        font-weight: 600;
-    }
-
-    .price-mode-toggle .mode-hint {
-        display: none;
-    }
-}
-
-/* Responsive - Small screens: 2-column card layout */
-@media (max-width: 900px) {
-    .conversion-pair {
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas:
-            "input output"
-            "summary summary";
-        gap: 0.5rem 1rem;
-    }
-
-    .pair-input-vol,
-    .pair-output-vol {
-        display: none;
-    }
-
-    .pair-summary {
-        grid-area: summary;
-        flex-wrap: wrap;
-    }
-
-    .item-row {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto;
-        gap: 0 0.5rem;
-        align-items: start;
-    }
-
-    .item-icon {
-        grid-row: 1 / 3;
-        align-self: center;
-    }
-
-    .item-name {
-        grid-column: 2;
-        grid-row: 1;
-        font-size: 0.9rem;
-    }
-
-    .item-price {
-        grid-column: 2;
-        grid-row: 2;
-        text-align: left;
-    }
-
-    .item-price .price-value,
-    .item-price .price-meta,
-    .item-vol {
-        display: inline;
-    }
-
-    .item-price .price-meta::before,
-    .item-vol::before {
-        content: " · ";
-    }
-}
-
-/* Responsive - Mobile: single column */
-@media (max-width: 600px) {
-    .conversion-pair {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "input"
-            "output"
-            "summary";
-    }
-
-    .pair-outputs {
-        border-top: 1px dashed var(--border);
-        padding-top: 0.5rem;
-        margin-top: 0.25rem;
-    }
-
-    .pair-summary {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .summary-item {
-        justify-content: space-between;
-    }
-}
-
-/* Recipes Grid (alias for conversions-grid) */
+/* Recipes Grid */
 .recipes-grid {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -1076,10 +886,12 @@ a.item-name:hover {
     font-size: 1rem;
     display: grid;
     grid-template-columns:
-        [input] minmax(150px, 2fr)
+        [input-name] auto
+        [input-price] auto
         [invol] auto
         [cost] auto
-        [output] minmax(150px, 2fr)
+        [output-name] auto
+        [output-price] auto
         [outvol] auto
         [revenue] auto
         [tax] auto
@@ -1104,8 +916,42 @@ a.item-name:hover {
 }
 
 .recipe-pair > div {
-    padding: 0.5rem 0.75rem;
+    padding: 0.35rem 0.6rem;
     min-width: 0;
+}
+
+/* Named grid columns */
+.recipes-grid .pair-input-names { grid-column: input-name; }
+.recipes-grid .pair-input-prices { grid-column: input-price; }
+.recipes-grid .pair-input-vol { grid-column: invol; }
+.recipes-grid .pair-cost { grid-column: cost; }
+.recipes-grid .pair-output-names { grid-column: output-name; }
+.recipes-grid .pair-output-prices { grid-column: output-price; }
+.recipes-grid .pair-output-vol { grid-column: outvol; }
+.recipes-grid .pair-revenue { grid-column: revenue; }
+.recipes-grid .pair-tax { grid-column: tax; }
+.recipes-grid .pair-profit { grid-column: profit; }
+.recipes-grid .pair-roi { grid-column: roi; }
+
+/* Header columns - span name+price for inputs/outputs */
+.recipes-grid .hdr-input { grid-column: input-name / span 2; }
+.recipes-grid .hdr-cost { grid-column: cost; }
+.recipes-grid .hdr-output { grid-column: output-name / span 2; }
+.recipes-grid .hdr-revenue { grid-column: revenue; }
+.recipes-grid .hdr-tax { grid-column: tax; }
+.recipes-grid .hdr-profit { grid-column: profit; }
+.recipes-grid .hdr-roi { grid-column: roi; }
+.recipes-grid .grid-header > div:nth-child(2) { grid-column: invol; }
+.recipes-grid .grid-header > div:nth-child(5) { grid-column: outvol; }
+
+/* Column alignment */
+.recipes-grid .col-vol,
+.recipes-grid .col-cost,
+.recipes-grid .col-revenue,
+.recipes-grid .col-tax,
+.recipes-grid .col-profit,
+.recipes-grid .col-roi {
+    text-align: right;
 }
 
 /* Guest Banner */
@@ -1409,33 +1255,152 @@ a.item-name:hover {
 
 /* Responsive for recipes grid */
 @media (max-width: 1400px) {
-    .recipes-grid {
-        display: flex;
-        flex-direction: column;
+    /* Hide subtotals, tax, profit, roi, header - shown in summary instead */
+    .recipes-grid .col-cost,
+    .recipes-grid .col-revenue,
+    .recipes-grid .col-tax,
+    .recipes-grid .col-profit,
+    .recipes-grid .col-roi,
+    .recipes-grid .pair-profit,
+    .recipes-grid .pair-roi {
+        display: none;
     }
 
     .recipes-grid .grid-header {
         display: none;
     }
 
-    .recipe-pair {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr auto;
-        grid-template-areas:
-            "input invol output outvol"
-            "financials financials financials financials";
-        gap: 0.25rem 0.75rem;
-        padding: 0.75rem;
+    /* Adjust grid to fewer columns - filler columns absorb extra space */
+    .recipes-grid {
+        grid-template-columns:
+            [input-name] auto
+            [input-price] auto
+            [invol] auto
+            [fill1] 1fr
+            [arrow] auto
+            [output-name] auto
+            [output-price] auto
+            [outvol] auto
+            [fill2] 1fr;
+    }
+
+    /* Arrow separator between inputs and outputs */
+    .recipes-grid .pair-arrow {
+        grid-column: arrow;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 1.25rem;
+        padding: 0 0.25rem;
+    }
+    .recipes-grid .pair-arrow::before {
+        content: '→';
+    }
+
+    /* Show summary row */
+    .recipes-grid .pair-summary {
+        grid-column: 1 / -1;
+        display: flex !important;
+        gap: 0.5rem 1.5rem;
+        justify-content: flex-start;
+        border-top: 1px solid var(--border);
+        margin-top: 0.25rem;
+    }
+
+    .summary-item {
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+    }
+
+    .summary-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .summary-value {
+        font-family: 'SF Mono', 'Consolas', monospace;
+        font-size: 0.9rem;
+    }
+
+    .summary-profit .summary-value {
+        font-weight: 600;
+    }
+
+    .price-mode-toggle .mode-hint {
+        display: none;
     }
 }
 
 @media (max-width: 900px) {
-    .recipe-pair {
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas:
-            "input output"
-            "summary summary";
-        gap: 0.5rem 1rem;
+    /* Hide vol columns and separate price columns */
+    .recipes-grid .col-vol,
+    .recipes-grid .hdr-vol,
+    .recipes-grid .pair-input-vol,
+    .recipes-grid .pair-output-vol,
+    .recipes-grid .pair-input-prices,
+    .recipes-grid .pair-output-prices {
+        display: none;
+    }
+
+    /* Adjust grid - names span both name+price columns, keep arrow */
+    .recipes-grid {
+        grid-template-columns:
+            [input-name] 1fr
+            [input-price] 0
+            [arrow] auto
+            [output-name] 1fr
+            [output-price] 0
+            [profit] auto
+            [roi] auto;
+    }
+
+    /* Show arrow at 900px */
+    .recipes-grid .pair-arrow {
+        display: flex;
+    }
+
+    /* Item row: icon on left spanning 2 rows, name row 1, price row 2 */
+    .item-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        gap: 0 0.5rem;
+        align-items: start;
+    }
+
+    .item-icon {
+        grid-row: 1 / 3;
+        align-self: center;
+    }
+
+    .item-name {
+        grid-column: 2;
+        grid-row: 1;
+        font-size: 0.9rem;
+    }
+
+    .item-price {
+        display: block !important;
+        grid-column: 2;
+        grid-row: 2;
+        text-align: left;
+    }
+
+    .item-price .price-value,
+    .item-price .price-meta {
+        display: inline;
+    }
+
+    .item-vol {
+        display: inline !important;
+    }
+
+    .item-price .price-meta::before,
+    .item-vol::before {
+        content: " · ";
     }
 
     .presets-grid {
@@ -1444,12 +1409,54 @@ a.item-name:hover {
 }
 
 @media (max-width: 600px) {
-    .recipe-pair {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "input"
-            "output"
-            "summary";
+    /* Stack inputs/outputs vertically, summary below */
+    .recipes-grid {
+        display: block;
+    }
+
+    .recipes-grid .recipe-pair {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .recipes-grid .pair-input-names,
+    .recipes-grid .pair-output-names,
+    .recipes-grid .pair-summary {
+        width: 100%;
+    }
+
+    .recipes-grid .pair-output-names {
+        border-top: 1px dashed var(--border);
+        padding-top: 0.5rem;
+    }
+
+    .recipes-grid .pair-summary {
+        display: flex !important;
+        flex-direction: column;
+        gap: 0.25rem;
+        border-top: 1px solid var(--border);
+        padding-top: 0.5rem;
+        grid-column: unset;
+    }
+
+    .recipes-grid .pair-summary .summary-item {
+        justify-content: space-between;
+    }
+
+    /* Hide grid-specific columns */
+    .recipes-grid .pair-input-prices,
+    .recipes-grid .pair-output-prices,
+    .recipes-grid .pair-input-vol,
+    .recipes-grid .pair-output-vol,
+    .recipes-grid .pair-cost,
+    .recipes-grid .pair-revenue,
+    .recipes-grid .pair-tax,
+    .recipes-grid .pair-profit,
+    .recipes-grid .pair-roi,
+    .recipes-grid .pair-arrow {
+        display: none;
     }
 
     .preset-actions {
