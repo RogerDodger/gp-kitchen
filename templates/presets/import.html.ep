@@ -1,0 +1,73 @@
+% layout 'default';
+% title 'Import - ' . stash('preset')->{name};
+
+<div class="import-page">
+    <h1>Import from "<%= stash('preset')->{name} %>"</h1>
+    <p class="page-description">Select which recipes to import to your dashboard.</p>
+
+    <a href="/presets/<%= stash('preset')->{id} %>" class="btn btn-secondary">&larr; Back to Preset</a>
+
+    % my $recipes = stash('recipes') // [];
+    % if (@$recipes) {
+        <form method="post" action="/presets/<%= stash('preset')->{id} %>/import" class="import-form">
+            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+
+            <div class="select-all-row">
+                <label>
+                    <input type="checkbox" id="select-all" checked>
+                    Select All
+                </label>
+            </div>
+
+            <div class="import-recipes-list">
+                % for my $recipe (@$recipes) {
+                    <div class="import-recipe-item">
+                        <label>
+                            <input type="checkbox" name="recipe_ids" value="<%= $recipe->{id} %>" checked>
+                            <span class="recipe-preview">
+                                <span class="recipe-inputs">
+                                    % for my $input (@{$recipe->{inputs}}) {
+                                        <span class="recipe-item">
+                                            <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                                                 alt="" class="preview-icon" onerror="this.style.display='none'">
+                                            <%= $input->{quantity} %>x <%= $input->{name} %>
+                                        </span>
+                                    % }
+                                </span>
+                                <span class="recipe-arrow">&rarr;</span>
+                                <span class="recipe-outputs">
+                                    % for my $output (@{$recipe->{outputs}}) {
+                                        <span class="recipe-item">
+                                            <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                                                 alt="" class="preview-icon" onerror="this.style.display='none'">
+                                            <%= $output->{quantity} %>x <%= $output->{name} %>
+                                        </span>
+                                    % }
+                                </span>
+                                <span class="recipe-profit <%= $recipe->{profit} > 0 ? 'positive' : ($recipe->{profit} < 0 ? 'negative' : '') %>">
+                                    <%= format_gp($recipe->{profit}) %>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                % }
+            </div>
+
+            <div class="import-actions">
+                <button type="submit" class="btn btn-primary">Import Selected Recipes</button>
+            </div>
+        </form>
+    % } else {
+        <div class="empty-state">
+            <p>This preset has no recipes to import.</p>
+        </div>
+    % }
+</div>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+    document.querySelectorAll('input[name="recipe_ids"]').forEach(cb => {
+        cb.checked = this.checked;
+    });
+});
+</script>

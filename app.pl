@@ -10,7 +10,7 @@ use OSRS::GE::Schema;
 use OSRS::GE::PriceUpdater;
 
 # Load configuration
-my $config_file = $ENV{FLIPPA_CONFIG} // "$FindBin::Bin/config.yml";
+my $config_file = $ENV{GP_KITCHEN_CONFIG} // "$FindBin::Bin/config.yml";
 my $config = LoadFile($config_file);
 
 # Initialize database
@@ -19,23 +19,80 @@ my $schema = OSRS::GE::Schema->new(
 );
 $schema->init_schema("$FindBin::Bin/schema.sql");
 
+# Run migration if needed
+$schema->migrate($config->{admin_password});
+
 # Store in app
 app->helper(schema => sub { $schema });
 app->helper(config => sub { $config });
 
-# Session secret
+# Session configuration (30 day expiry)
 app->secrets([$config->{session}{secret} // 'change_me_in_production']);
+app->sessions->default_expiration(30 * 24 * 60 * 60);  # 30 days
 
 # Static files and templates
 app->static->paths->[0] = "$FindBin::Bin/public";
 app->renderer->paths->[0] = "$FindBin::Bin/templates";
 
-# Helper to check authentication
-app->helper(is_authenticated => sub ($c) {
-    return $c->session('authenticated');
+# =====================================
+# User helpers
+# =====================================
+
+app->helper(current_user => sub ($c) {
+    my $user_id = $c->session('user_id');
+    return unless $user_id;
+    return $schema->get_user($user_id);
 });
 
-# Helper to format numbers with commas
+app->helper(is_admin => sub ($c) {
+    my $user = $c->current_user;
+    return $user && $user->{is_admin};
+});
+
+app->helper(is_guest => sub ($c) {
+    my $user = $c->current_user;
+    return $user && $user->{is_guest};
+});
+
+app->helper(is_authenticated => sub ($c) {
+    return !!$c->session('user_id');
+});
+
+app->helper(is_dev_mode => sub ($c) {
+    return $config->{dev_mode} ? 1 : 0;
+});
+
+# =====================================
+# CSRF helpers
+# =====================================
+
+app->helper(csrf_token => sub ($c) {
+    my $token = $c->session('csrf_token');
+    unless ($token) {
+        $token = _random_string(32);
+        $c->session(csrf_token => $token);
+    }
+    return $token;
+});
+
+app->helper(csrf_check => sub ($c) {
+    my $expected = $c->session('csrf_token');
+    my $provided = $c->param('csrf_token');
+    return $expected && $provided && $expected eq $provided;
+});
+
+sub _random_string {
+    my ($len) = @_;
+    my @chars = ('a'..'z', 'A'..'Z', '0'..'9');
+    my $str = '';
+    $str .= $chars[rand @chars] for 1..$len;
+    return $str;
+}
+
+# =====================================
+# Formatting helpers
+# =====================================
+
 app->helper(format_gp => sub ($c, $num) {
     return 'N/A' unless defined $num;
     $num = int($num);
@@ -47,7 +104,6 @@ app->helper(format_gp => sub ($c, $num) {
     return $sign . $num;
 });
 
-# Helper to format numbers compactly (1.2M, 500K, etc.)
 app->helper(format_gp_compact => sub ($c, $num) {
     return 'N/A' unless defined $num;
     my $sign = $num < 0 ? '-' : '';
@@ -63,7 +119,6 @@ app->helper(format_gp_compact => sub ($c, $num) {
     return $sign . $num;
 });
 
-# Helper to format time as relative short format (e.g., "50s ago", "5m ago", "2h ago", "3d ago")
 app->helper(time_ago => sub ($c, $timestamp) {
     return 'N/A' unless defined $timestamp;
     my $diff = time() - $timestamp;
@@ -76,7 +131,6 @@ app->helper(time_ago => sub ($c, $timestamp) {
     return "${days}d ago";
 });
 
-# Helper to format volume numbers compactly
 app->helper(format_vol => sub ($c, $num) {
     return '0' unless defined $num;
     if ($num >= 1_000_000) {
@@ -87,7 +141,6 @@ app->helper(format_vol => sub ($c, $num) {
     return $num;
 });
 
-# Helper to calculate GE tax (2% capped at 5M per item, as of May 2025)
 app->helper(calculate_tax => sub ($c, $price, $quantity) {
     $quantity //= 1;
     my $total = ($price // 0) * $quantity;
@@ -96,7 +149,6 @@ app->helper(calculate_tax => sub ($c, $price, $quantity) {
     return $tax > $max_tax ? $max_tax : $tax;
 });
 
-# Helper to compute rowspans for items when counts differ
 app->helper(compute_rowspans => sub ($c, $count, $max_rows) {
     return [(1) x $count] if $count == $max_rows;
     my $base = int($max_rows / $count);
@@ -104,26 +156,22 @@ app->helper(compute_rowspans => sub ($c, $count, $max_rows) {
     return [map { $base + ($_ < $rem ? 1 : 0) } (0 .. $count - 1)];
 });
 
-# Helper to compute pair profits for both modes
-app->helper(compute_conversion_modes => sub ($c, $conv) {
+app->helper(compute_recipe_modes => sub ($c, $recipe) {
     my %result = (instant => {}, patient => {});
-
-    # Instant mode: buy at high (ask), sell at low (bid)
-    # Patient mode: buy at low (bid), sell at high (ask)
 
     for my $mode (qw(instant patient)) {
         my $input_cost = 0;
         my $output_revenue = 0;
         my $total_tax = 0;
 
-        for my $input (@{$conv->{inputs}}) {
+        for my $input (@{$recipe->{inputs}}) {
             my $price = $mode eq 'instant'
                 ? ($input->{high_price} // 0)
                 : ($input->{low_price} // 0);
             $input_cost += $price * ($input->{quantity} // 1);
         }
 
-        for my $output (@{$conv->{outputs}}) {
+        for my $output (@{$recipe->{outputs}}) {
             my $qty = $output->{quantity} // 1;
             my $price = $mode eq 'instant'
                 ? ($output->{low_price} // 0)
@@ -158,9 +206,13 @@ app->helper(compute_conversion_modes => sub ($c, $conv) {
 
 # Dashboard (main page)
 get '/' => sub ($c) {
-    my $conversions = $schema->get_all_conversions(1);  # Active only
+    my $user = $c->current_user;
+    my $recipes = [];
+    if ($user) {
+        $recipes = $schema->get_all_recipes($user->{id}, 1);  # Active only
+    }
     my $stats = $schema->get_price_stats;
-    $c->stash(conversions => $conversions, stats => $stats);
+    $c->stash(recipes => $recipes, stats => $stats);
     $c->render(template => 'dashboard/index');
 };
 
@@ -181,11 +233,14 @@ get '/api/items/:id' => sub ($c) {
     $c->render(json => $item);
 };
 
-# API: Get all conversions (for dashboard refresh)
-get '/api/conversions' => sub ($c) {
+# API: Get all recipes (for dashboard refresh)
+get '/api/recipes' => sub ($c) {
+    my $user = $c->current_user;
+    return $c->render(json => []) unless $user;
+
     my $active_only = $c->param('active') // 1;
-    my $conversions = $schema->get_all_conversions($active_only);
-    $c->render(json => $conversions);
+    my $recipes = $schema->get_all_recipes($user->{id}, $active_only);
+    $c->render(json => $recipes);
 };
 
 # API: Get price history from OSRS Wiki
@@ -204,7 +259,7 @@ get '/api/items/:id/history' => sub ($c) {
 
     my $ua = LWP::UserAgent->new(
         timeout => 15,
-        agent   => $config->{user_agent} // 'OSRS-GE-Tracker/1.0',
+        agent   => $config->{user_agent} // 'GP-Kitchen/1.0',
     );
 
     my $url = "https://prices.runescape.wiki/api/v1/osrs/timeseries?id=$id&timestep=$timestep";
@@ -241,15 +296,17 @@ get '/login' => sub ($c) {
 };
 
 post '/login' => sub ($c) {
+    my $username = $c->param('username') // '';
     my $password = $c->param('password') // '';
 
-    if ($password eq $config->{admin_password}) {
-        $c->session(authenticated => 1);
-        $c->session(expiration => 86400);
-        return $c->redirect_to('/admin');
+    my $user = $schema->authenticate_user($username, $password);
+    if ($user) {
+        $c->session(user_id => $user->{id});
+        $schema->update_user_last_active($user->{id});
+        return $c->redirect_to('/recipes');
     }
 
-    $c->flash(error => 'Invalid password');
+    $c->flash(error => 'Invalid username or password');
     $c->redirect_to('/login');
 };
 
@@ -258,96 +315,591 @@ get '/logout' => sub ($c) {
     $c->redirect_to('/');
 };
 
+get '/register' => sub ($c) {
+    $c->render(template => 'auth/register');
+};
+
+post '/register' => sub ($c) {
+    return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+    my $username = $c->param('username') // '';
+    my $password = $c->param('password') // '';
+    my $confirm = $c->param('confirm_password') // '';
+
+    # Validation
+    if (length($username) < 3 || length($username) > 20) {
+        $c->flash(error => 'Username must be 3-20 characters');
+        return $c->redirect_to('/register');
+    }
+    unless ($username =~ /^[a-zA-Z0-9_]+$/) {
+        $c->flash(error => 'Username can only contain letters, numbers, and underscores');
+        return $c->redirect_to('/register');
+    }
+    if (length($password) < 6) {
+        $c->flash(error => 'Password must be at least 6 characters');
+        return $c->redirect_to('/register');
+    }
+    if ($password ne $confirm) {
+        $c->flash(error => 'Passwords do not match');
+        return $c->redirect_to('/register');
+    }
+
+    # Check if upgrading guest
+    my $current_user = $c->current_user;
+    if ($current_user && $current_user->{is_guest}) {
+        my $result = $schema->register_guest($current_user->{id}, $username, $password);
+        if ($result->{error}) {
+            $c->flash(error => $result->{error});
+            return $c->redirect_to('/register');
+        }
+        $c->flash(success => 'Account saved! You can now log in from any device.');
+        return $c->redirect_to('/recipes');
+    }
+
+    # New registration
+    my $existing = $schema->get_user_by_username($username);
+    if ($existing) {
+        $c->flash(error => 'Username already taken');
+        return $c->redirect_to('/register');
+    }
+
+    my $user_id = $schema->create_user(
+        username => $username,
+        password => $password,
+    );
+    $c->session(user_id => $user_id);
+    $c->flash(success => 'Account created!');
+    $c->redirect_to('/recipes');
+};
+
 # =====================================
-# Admin routes (authenticated)
+# Recipe routes (authenticated)
 # =====================================
 
 group {
-    under '/admin' => sub ($c) {
-        return 1 if $c->is_authenticated;
+    under '/recipes' => sub ($c) {
+        # Ensure user exists (create guest if needed for modifying actions)
+        my $user = $c->current_user;
+        if (!$user && $c->req->method eq 'POST') {
+            # Create guest account on first modifying action
+            my $user_id = $schema->create_guest_user;
+            $c->session(user_id => $user_id);
+            $user = $schema->get_user($user_id);
+        }
+        return 1 if $user || $c->req->method eq 'GET';
         $c->redirect_to('/login');
         return 0;
     };
 
-    # Admin dashboard
+    # Recipe management page
     get '/' => sub ($c) {
-        my $conversions = $schema->get_all_conversions(0);  # All
+        my $user = $c->current_user;
+        return $c->redirect_to('/login') unless $user;
+
+        my $recipes = $schema->get_all_recipes($user->{id}, 0);  # All
         my $stats = $schema->get_price_stats;
-        $c->stash(conversions => $conversions, stats => $stats);
+        $c->stash(recipes => $recipes, stats => $stats);
         $c->render(template => 'admin/index');
     };
 
-    # Create new conversion pair
-    post '/conversions' => sub ($c) {
-        my $id = $schema->create_conversion_pair();
-        $c->redirect_to("/admin/conversions/$id/edit");
+    # Create new recipe
+    post '/' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
+        my $id = $schema->create_recipe($user->{id});
+        $c->redirect_to("/recipes/$id/edit");
     };
 
-    # Edit conversion pair form
-    get '/conversions/:id/edit' => sub ($c) {
-        my $id = $c->param('id');
-        my $conv = $schema->get_conversion_pair($id);
-        return $c->render(text => 'Not found', status => 404) unless $conv;
+    # Edit recipe form
+    get '/:id/edit' => sub ($c) {
+        my $user = $c->current_user;
+        return $c->redirect_to('/login') unless $user;
 
-        $c->stash(conv => $conv);
-        $c->render(template => 'admin/edit_conversion');
+        my $id = $c->param('id');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $id);
+
+        my $recipe = $schema->get_recipe($id);
+        return $c->render(text => 'Not found', status => 404) unless $recipe;
+
+        $c->stash(recipe => $recipe);
+        $c->render(template => 'admin/edit_recipe');
     };
 
-    # Toggle conversion active status
-    post '/conversions/:id/toggle' => sub ($c) {
+    # Toggle recipe active status
+    post '/:id/toggle' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
         my $id = $c->param('id');
-        $schema->toggle_conversion_active($id);
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $id);
+
+        $schema->toggle_recipe_active($id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/admin');
+        $c->redirect_to('/recipes');
     };
 
-    # Toggle conversion live status
-    post '/conversions/:id/toggle-live' => sub ($c) {
+    # Toggle recipe live status
+    post '/:id/toggle-live' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
         my $id = $c->param('id');
-        $schema->toggle_conversion_live($id);
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $id);
+
+        $schema->toggle_recipe_live($id, $user->{id});
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/admin');
+        $c->redirect_to('/recipes');
     };
 
-    # Reorder conversions
-    post '/conversions/reorder' => sub ($c) {
+    # Reorder recipes
+    post '/reorder' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
         my $order = $c->param('order') // '';
         my $id = $c->param('id');
         my $dir = $c->param('dir');
 
         my @ids = grep { /^\d+$/ } split /,/, $order;
         if (@ids && $id && $dir =~ /^(up|down)$/) {
+            # Verify all recipes belong to user
+            for my $recipe_id (@ids) {
+                return $c->render(text => 'Not authorized', status => 403)
+                    unless $schema->user_owns_recipe($user->{id}, $recipe_id);
+            }
+
             my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
             if (defined $idx) {
                 my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
                 if ($swap_idx >= 0 && $swap_idx <= $#ids) {
                     # Check if both items have same live status
-                    my $live_status = $schema->dbh->selectall_hashref(
-                        'SELECT id, live FROM conversions WHERE id IN (?, ?)',
+                    my $dbh = $schema->dbh;
+                    my $live_status = $dbh->selectall_hashref(
+                        'SELECT id, live FROM recipes WHERE id IN (?, ?)',
                         'id', undef, $ids[$idx], $ids[$swap_idx]
                     );
                     my $same_live = $live_status->{$ids[$idx]}{live} == $live_status->{$ids[$swap_idx]}{live};
                     if ($same_live) {
                         @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
-                        $schema->reorder_conversions(\@ids);
+                        $schema->reorder_recipes(\@ids);
                     }
                 }
             }
         }
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/admin');
+        $c->redirect_to('/recipes');
     };
 
-    # Delete conversion pair
-    post '/conversions/:id/delete' => sub ($c) {
+    # Delete recipe
+    post '/:id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
         my $id = $c->param('id');
-        $schema->delete_conversion_pair($id);
-        $c->flash(success => 'Conversion pair deleted');
-        $c->redirect_to('/admin');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $id);
+
+        $schema->delete_recipe($id);
+        $c->flash(success => 'Recipe deleted');
+        $c->redirect_to('/recipes');
     };
 
-    # Update price cache (latest only for speed)
+    # Add input to recipe
+    post '/:id/inputs' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
+        my $recipe_id = $c->param('id');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
+
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        if ($item_id) {
+            $schema->add_recipe_input($recipe_id, $item_id, $quantity);
+        }
+
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/recipes/$recipe_id/edit");
+    };
+
+    # Remove input from recipe
+    post '/:id/inputs/:input_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
+        my $recipe_id = $c->param('id');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
+
+        my $input_id = $c->param('input_id');
+        $schema->remove_recipe_input($input_id);
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/recipes/$recipe_id/edit");
+    };
+
+    # Add output to recipe
+    post '/:id/outputs' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
+        my $recipe_id = $c->param('id');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
+
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        if ($item_id) {
+            $schema->add_recipe_output($recipe_id, $item_id, $quantity);
+        }
+
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/recipes/$recipe_id/edit");
+    };
+
+    # Remove output from recipe
+    post '/:id/outputs/:output_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $user = $c->current_user;
+        my $recipe_id = $c->param('id');
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
+
+        my $output_id = $c->param('output_id');
+        $schema->remove_recipe_output($output_id);
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/recipes/$recipe_id/edit");
+    };
+};
+
+# =====================================
+# Preset routes (public browsing)
+# =====================================
+
+# Browse all presets
+get '/presets' => sub ($c) {
+    my $presets = $schema->get_all_presets;
+
+    # Get all recipes for each preset
+    for my $preset (@$presets) {
+        my $recipes = $schema->get_preset_recipes($preset->{id});
+        $preset->{recipes} = $recipes;
+        $preset->{total_recipes} = scalar @$recipes;
+    }
+
+    my $stats = $schema->get_price_stats;
+    $c->stash(presets => $presets, stats => $stats);
+    $c->render(template => 'presets/index');
+};
+
+# View single preset
+get '/presets/:id' => sub ($c) {
+    my $id = $c->param('id');
+    my $preset = $schema->get_preset($id);
+    return $c->render(text => 'Preset not found', status => 404) unless $preset;
+
+    my $recipes = $schema->get_preset_recipes($id);
+    my $stats = $schema->get_price_stats;
+
+    # Check if user has imported this preset
+    my $user = $c->current_user;
+    my $has_imported = $user ? $schema->has_imported_preset($id, $user->{id}) : 0;
+
+    $c->stash(
+        preset => $preset,
+        recipes => $recipes,
+        stats => $stats,
+        has_imported => $has_imported,
+    );
+    $c->render(template => 'presets/show');
+};
+
+# Import selection page
+get '/presets/:id/import' => sub ($c) {
+    my $id = $c->param('id');
+    my $preset = $schema->get_preset($id);
+    return $c->render(text => 'Preset not found', status => 404) unless $preset;
+
+    my $recipes = $schema->get_preset_recipes($id);
+    $c->stash(preset => $preset, recipes => $recipes);
+    $c->render(template => 'presets/import');
+};
+
+# Process import
+post '/presets/:id/import' => sub ($c) {
+    return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+    my $preset_id = $c->param('id');
+    my $preset = $schema->get_preset($preset_id);
+    return $c->render(text => 'Preset not found', status => 404) unless $preset;
+
+    # Ensure user exists (create guest if needed)
+    my $user = $c->current_user;
+    unless ($user) {
+        my $user_id = $schema->create_guest_user;
+        $c->session(user_id => $user_id);
+        $user = $schema->get_user($user_id);
+    }
+
+    # Get selected recipe IDs (every_param for multiple checkboxes)
+    my @recipe_ids = @{ $c->every_param('recipe_ids') };
+    @recipe_ids = grep { /^\d+$/ } @recipe_ids;
+
+    if (@recipe_ids) {
+        eval {
+            $schema->import_preset($preset_id, $user->{id}, \@recipe_ids);
+        };
+        if ($@) {
+            $c->flash(error => "Import failed: $@");
+            return $c->redirect_to("/presets/$preset_id/import");
+        }
+        my $count = @recipe_ids;
+        $c->flash(success => "Imported $count recipe(s) from " . $preset->{name});
+    }
+
+    $c->redirect_to('/recipes');
+};
+
+# =====================================
+# Preset admin routes (admin only)
+# =====================================
+
+group {
+    under '/presets' => sub ($c) {
+        # Only check admin for POST requests and /new route
+        return 1 unless $c->req->method eq 'POST' || $c->req->url->path =~ m{/(new|edit|\d+/recipes)};
+        return 1 if $c->is_admin;
+        $c->render(text => 'Admin access required', status => 403);
+        return 0;
+    };
+
+    # New preset form
+    get '/new' => sub ($c) {
+        $c->render(template => 'presets/new');
+    };
+
+    # Create preset
+    post '/new' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $name = $c->param('name') // '';
+        my $description = $c->param('description') // '';
+
+        if (length($name) < 1) {
+            $c->flash(error => 'Name is required');
+            return $c->redirect_to('/presets/new');
+        }
+
+        my $user = $c->current_user;
+        my $id = $schema->create_preset($name, $description, $user->{id});
+        $c->redirect_to("/presets/$id/recipes");
+    };
+
+    # Edit preset recipes
+    get '/:preset_id/recipes' => sub ($c) {
+        my $preset_id = $c->param('preset_id');
+        my $preset = $schema->get_preset($preset_id);
+        return $c->render(text => 'Preset not found', status => 404) unless $preset;
+
+        my $recipes = $schema->get_preset_recipes($preset_id);
+        my $stats = $schema->get_price_stats;
+        $c->stash(preset => $preset, recipes => $recipes, stats => $stats);
+        $c->render(template => 'presets/recipes');
+    };
+
+    # Update preset metadata
+    post '/:preset_id/edit' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $name = $c->param('name') // '';
+        my $description = $c->param('description') // '';
+
+        $schema->update_preset($preset_id, $name, $description);
+        $c->flash(success => 'Preset updated');
+        $c->redirect_to("/presets/$preset_id/recipes");
+    };
+
+    # Delete preset
+    post '/:preset_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        $schema->delete_preset($preset_id);
+        $c->flash(success => 'Preset deleted');
+        $c->redirect_to('/presets');
+    };
+
+    # Add recipe to preset
+    post '/:preset_id/recipes' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $id = $schema->create_preset_recipe($preset_id);
+        $c->redirect_to("/presets/$preset_id/recipes/$id/edit");
+    };
+
+    # Edit preset recipe
+    get '/:preset_id/recipes/:recipe_id/edit' => sub ($c) {
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        my $preset = $schema->get_preset($preset_id);
+        return $c->render(text => 'Preset not found', status => 404) unless $preset;
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        my $recipe = $schema->get_preset_recipe($recipe_id);
+        return $c->render(text => 'Recipe not found', status => 404) unless $recipe;
+
+        $c->stash(preset => $preset, recipe => $recipe);
+        $c->render(template => 'presets/edit_recipe');
+    };
+
+    # Delete preset recipe
+    post '/:preset_id/recipes/:recipe_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        $schema->delete_preset_recipe($recipe_id);
+        $c->flash(success => 'Recipe deleted');
+        $c->redirect_to("/presets/$preset_id/recipes");
+    };
+
+    # Add input to preset recipe
+    post '/:preset_id/recipes/:recipe_id/inputs' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        if ($item_id) {
+            $schema->add_preset_recipe_input($recipe_id, $item_id, $quantity);
+        }
+
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+    };
+
+    # Remove input from preset recipe
+    post '/:preset_id/recipes/:recipe_id/inputs/:input_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        my $input_id = $c->param('input_id');
+        $schema->remove_preset_recipe_input($input_id);
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+    };
+
+    # Add output to preset recipe
+    post '/:preset_id/recipes/:recipe_id/outputs' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        if ($item_id) {
+            $schema->add_preset_recipe_output($recipe_id, $item_id, $quantity);
+        }
+
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+    };
+
+    # Remove output from preset recipe
+    post '/:preset_id/recipes/:recipe_id/outputs/:output_id/delete' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $recipe_id = $c->param('recipe_id');
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+
+        my $output_id = $c->param('output_id');
+        $schema->remove_preset_recipe_output($output_id);
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+    };
+
+    # Reorder preset recipes
+    post '/:preset_id/recipes/reorder' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $preset_id = $c->param('preset_id');
+        my $order = $c->param('order') // '';
+        my $id = $c->param('id');
+        my $dir = $c->param('dir');
+
+        my @ids = grep { /^\d+$/ } split /,/, $order;
+        if (@ids && $id && $dir =~ /^(up|down)$/) {
+            # Verify all recipes belong to preset
+            for my $recipe_id (@ids) {
+                return $c->render(text => 'Not authorized', status => 403)
+                    unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            }
+
+            my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
+            if (defined $idx) {
+                my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
+                if ($swap_idx >= 0 && $swap_idx <= $#ids) {
+                    @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
+                    $schema->reorder_preset_recipes(\@ids);
+                }
+            }
+        }
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to("/presets/$preset_id/recipes");
+    };
+};
+
+# =====================================
+# Admin routes
+# =====================================
+
+group {
+    under '/admin' => sub ($c) {
+        return 1 if $c->is_admin;
+        $c->render(text => 'Admin access required', status => 403);
+        return 0;
+    };
+
+    # Update price cache (dev mode only)
     post '/update-prices' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+        return $c->render(text => 'Dev mode only', status => 403) unless $c->is_dev_mode;
+
         eval {
             my $updater = OSRS::GE::PriceUpdater->new(
                 schema     => $schema,
@@ -361,52 +913,13 @@ group {
         $c->redirect_to($c->req->headers->referrer // '/');
     };
 
-    # Add input to conversion
-    post '/conversions/:id/inputs' => sub ($c) {
-        my $pair_id = $c->param('id');
-        my $item_id = $c->param('item_id');
-        my $quantity = $c->param('quantity') // 1;
+    # Cleanup inactive guest accounts (30+ days)
+    post '/cleanup-guests' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        if ($item_id) {
-            $schema->add_conversion_input($pair_id, $item_id, $quantity);
-        }
-
-        $c->flash(restore_scroll => 1);
-        $c->redirect_to("/admin/conversions/$pair_id/edit");
-    };
-
-    # Remove input from conversion
-    post '/conversions/:id/inputs/:input_id/delete' => sub ($c) {
-        my $pair_id = $c->param('id');
-        my $input_id = $c->param('input_id');
-
-        $schema->remove_conversion_input($input_id);
-        $c->flash(restore_scroll => 1);
-        $c->redirect_to("/admin/conversions/$pair_id/edit");
-    };
-
-    # Add output to conversion
-    post '/conversions/:id/outputs' => sub ($c) {
-        my $pair_id = $c->param('id');
-        my $item_id = $c->param('item_id');
-        my $quantity = $c->param('quantity') // 1;
-
-        if ($item_id) {
-            $schema->add_conversion_output($pair_id, $item_id, $quantity);
-        }
-
-        $c->flash(restore_scroll => 1);
-        $c->redirect_to("/admin/conversions/$pair_id/edit");
-    };
-
-    # Remove output from conversion
-    post '/conversions/:id/outputs/:output_id/delete' => sub ($c) {
-        my $pair_id = $c->param('id');
-        my $output_id = $c->param('output_id');
-
-        $schema->remove_conversion_output($output_id);
-        $c->flash(restore_scroll => 1);
-        $c->redirect_to("/admin/conversions/$pair_id/edit");
+        my $deleted = $schema->cleanup_inactive_guests(30);
+        $c->flash(success => 'Inactive guest accounts cleaned up');
+        $c->redirect_to('/recipes');
     };
 };
 
@@ -420,7 +933,7 @@ __DATA__
 % title 'Login';
 
 <div class="login-container">
-    <h1>Admin Login</h1>
+    <h1>Login</h1>
 
     % if (flash 'error') {
         <div class="alert alert-error"><%= flash 'error' %></div>
@@ -428,9 +941,59 @@ __DATA__
 
     <form method="post" action="/login">
         <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" required autofocus>
+            <input type="password" id="password" name="password" required>
         </div>
         <button type="submit" class="btn btn-primary">Login</button>
     </form>
+
+    <p style="margin-top: 1rem; text-align: center;">
+        Don't have an account? <a href="/register">Register</a>
+    </p>
+</div>
+
+@@ auth/register.html.ep
+% layout 'default';
+% title 'Register';
+
+<div class="login-container">
+    <h1><%= is_guest() ? 'Save Account' : 'Register' %></h1>
+
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    % if (is_guest()) {
+        <p class="info-text">Save your dashboard by creating an account. You'll be able to log in from any device.</p>
+    % }
+
+    <form method="post" action="/register">
+        <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus
+                   pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="20">
+            <small>3-20 characters, letters, numbers, and underscores only</small>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="6">
+            <small>At least 6 characters</small>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+        <button type="submit" class="btn btn-primary"><%= is_guest() ? 'Save Account' : 'Register' %></button>
+    </form>
+
+    % unless (is_guest()) {
+        <p style="margin-top: 1rem; text-align: center;">
+            Already have an account? <a href="/login">Login</a>
+        </p>
+    % }
 </div>

@@ -1,0 +1,244 @@
+% layout 'default';
+% title 'Edit Recipe #' . stash('recipe')->{id};
+
+<div class="edit-recipe">
+    <h1>Edit Recipe #<%= stash('recipe')->{id} %></h1>
+
+    % if (flash 'success') {
+        <div class="alert alert-success"><%= flash 'success' %></div>
+    % }
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    <a href="/recipes" class="btn btn-secondary">&larr; Back to Recipes</a>
+
+    % my $recipe = stash('recipe');
+
+    <div class="form-section">
+        <h2>Inputs (Items you BUY)</h2>
+        <p class="hint">These are the items you purchase to make the recipe. Their instant-buy (ask) price is used.</p>
+
+        % if (@{$recipe->{inputs}}) {
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Price (Ask)</th>
+                        <th>Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for my $input (@{$recipe->{inputs}}) {
+                        <tr>
+                            <td>
+                                <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                                     alt="" class="item-icon" onerror="this.style.display='none'">
+                                <%= $input->{name} %>
+                            </td>
+                            <td><%= $input->{quantity} %></td>
+                            <td><%= format_gp($input->{high_price}) %></td>
+                            <td><%= format_gp(($input->{high_price} // 0) * $input->{quantity}) %></td>
+                            <td>
+                                <form method="post" action="/recipes/<%= $recipe->{id} %>/inputs/<%= $input->{id} %>/delete"
+                                      style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                                    <button type="submit" class="btn btn-small btn-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    % }
+                </tbody>
+            </table>
+        % } else {
+            <p class="empty-hint">No inputs yet</p>
+        % }
+
+        <div class="add-item-form">
+            <h3>Add Input</h3>
+            <form method="post" action="/recipes/<%= $recipe->{id} %>/inputs" id="add-input-form">
+                <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                <div class="item-search-container">
+                    <input type="text" id="input-search" placeholder="Search for item..." autocomplete="off">
+                    <input type="hidden" name="item_id" id="input-item-id">
+                    <div id="input-search-results" class="search-results"></div>
+                </div>
+                <input type="number" name="quantity" value="1" min="1" style="width: 150px">
+                <button type="submit" class="btn btn-primary" disabled id="add-input-btn">Add Input</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h2>Outputs (Items you SELL)</h2>
+        <p class="hint">These are the items you receive and sell. Their instant-sell (bid) price is used, minus 2% tax (capped at 5M).</p>
+
+        % if (@{$recipe->{outputs}}) {
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Price (Bid)</th>
+                        <th>Total (After Tax)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for my $output (@{$recipe->{outputs}}) {
+                        % my $total = ($output->{low_price} // 0) * $output->{quantity};
+                        % my $tax = calculate_tax($output->{low_price}, $output->{quantity});
+                        <tr>
+                            <td>
+                                <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                                     alt="" class="item-icon" onerror="this.style.display='none'">
+                                <%= $output->{name} %>
+                            </td>
+                            <td><%= $output->{quantity} %></td>
+                            <td><%= format_gp($output->{low_price}) %></td>
+                            <td><%= format_gp($total - $tax) %> <small>(tax: <%= format_gp($tax) %>)</small></td>
+                            <td>
+                                <form method="post" action="/recipes/<%= $recipe->{id} %>/outputs/<%= $output->{id} %>/delete"
+                                      style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                                    <button type="submit" class="btn btn-small btn-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    % }
+                </tbody>
+            </table>
+        % } else {
+            <p class="empty-hint">No outputs yet</p>
+        % }
+
+        <div class="add-item-form">
+            <h3>Add Output</h3>
+            <form method="post" action="/recipes/<%= $recipe->{id} %>/outputs" id="add-output-form">
+                <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                <div class="item-search-container">
+                    <input type="text" id="output-search" placeholder="Search for item..." autocomplete="off">
+                    <input type="hidden" name="item_id" id="output-item-id">
+                    <div id="output-search-results" class="search-results"></div>
+                </div>
+                <input type="number" name="quantity" value="1" min="1" style="width: 150px">
+                <button type="submit" class="btn btn-primary" disabled id="add-output-btn">Add Output</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="profit-preview">
+        <h2>Profit Preview</h2>
+        % my $input_cost = 0;
+        % for my $input (@{$recipe->{inputs}}) {
+        %     $input_cost += ($input->{high_price} // 0) * $input->{quantity};
+        % }
+        % my $output_revenue = 0;
+        % my $total_tax = 0;
+        % for my $output (@{$recipe->{outputs}}) {
+        %     my $total = ($output->{low_price} // 0) * $output->{quantity};
+        %     my $tax = calculate_tax($output->{low_price}, $output->{quantity});
+        %     $output_revenue += $total;
+        %     $total_tax += $tax;
+        % }
+        % my $profit = $output_revenue - $total_tax - $input_cost;
+
+        <table>
+            <tr>
+                <td>Input Cost:</td>
+                <td><%= format_gp($input_cost) %></td>
+            </tr>
+            <tr>
+                <td>Output Revenue:</td>
+                <td><%= format_gp($output_revenue) %></td>
+            </tr>
+            <tr>
+                <td>Tax:</td>
+                <td><%= format_gp($total_tax) %></td>
+            </tr>
+            <tr class="<%= $profit > 0 ? 'positive' : ($profit < 0 ? 'negative' : '') %>">
+                <td><strong>Profit:</strong></td>
+                <td><strong><%= format_gp($profit) %></strong></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+% content_for 'scripts' => begin
+<script>
+// Item search functionality
+function setupItemSearch(searchInputId, resultsId, hiddenInputId, submitBtnId) {
+    const searchInput = document.getElementById(searchInputId);
+    const results = document.getElementById(resultsId);
+    const hiddenInput = document.getElementById(hiddenInputId);
+    const submitBtn = document.getElementById(submitBtnId);
+
+    let debounceTimer;
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+
+        clearTimeout(debounceTimer);
+
+        if (query.length < 2) {
+            results.innerHTML = '';
+            results.style.display = 'none';
+            return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/items/search?q=' + encodeURIComponent(query));
+                const items = await response.json();
+
+                if (items.length === 0) {
+                    results.innerHTML = '<div class="search-result-item">No items found</div>';
+                } else {
+                    results.innerHTML = items.map(item => `
+                        <div class="search-result-item" data-id="${item.id}" data-name="${item.name}">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-price">${item.high_price ? formatGp(item.high_price) : 'N/A'}</span>
+                        </div>
+                    `).join('');
+                }
+                results.style.display = 'block';
+            } catch (err) {
+                console.error('Search failed:', err);
+            }
+        }, 300);
+    });
+
+    results.addEventListener('click', function(e) {
+        const item = e.target.closest('.search-result-item');
+        if (item && item.dataset.id) {
+            searchInput.value = item.dataset.name;
+            hiddenInput.value = item.dataset.id;
+            submitBtn.disabled = false;
+            results.style.display = 'none';
+        }
+    });
+
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !results.contains(e.target)) {
+            results.style.display = 'none';
+        }
+    });
+}
+
+function formatGp(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+}
+
+// Initialize search for inputs and outputs
+setupItemSearch('input-search', 'input-search-results', 'input-item-id', 'add-input-btn');
+setupItemSearch('output-search', 'output-search-results', 'output-item-id', 'add-output-btn');
+</script>
+% end

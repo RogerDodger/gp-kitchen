@@ -1,4 +1,4 @@
--- OSRS GE Tracker Database Schema
+-- GP Kitchen Database Schema
 
 -- Items table: stores item metadata from the OSRS Wiki API
 CREATE TABLE IF NOT EXISTS items (
@@ -27,9 +27,21 @@ CREATE TABLE IF NOT EXISTS item_prices (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
--- Conversions: defines input-output relationships
-CREATE TABLE IF NOT EXISTS conversions (
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT,          -- NULL for guest accounts
+    is_guest INTEGER DEFAULT 0,
+    is_admin INTEGER DEFAULT 0,
+    last_active INTEGER DEFAULT (strftime('%s', 'now')),
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+-- Recipes: defines input-output relationships (user dashboards)
+CREATE TABLE IF NOT EXISTS recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     active INTEGER DEFAULT 1,
     live INTEGER DEFAULT 0,
     sort_order INTEGER DEFAULT 0,
@@ -37,23 +49,65 @@ CREATE TABLE IF NOT EXISTS conversions (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
--- Conversion inputs: items that go INTO a conversion (you BUY these)
-CREATE TABLE IF NOT EXISTS conversion_inputs (
+-- Recipe inputs: items that go INTO a recipe (you BUY these)
+CREATE TABLE IF NOT EXISTS recipe_inputs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pair_id INTEGER NOT NULL REFERENCES conversions(id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
     item_id INTEGER NOT NULL REFERENCES items(id),
     quantity INTEGER NOT NULL DEFAULT 1
 );
 
--- Conversion outputs: items that come OUT of a conversion (you SELL these)
-CREATE TABLE IF NOT EXISTS conversion_outputs (
+-- Recipe outputs: items that come OUT of a recipe (you SELL these)
+CREATE TABLE IF NOT EXISTS recipe_outputs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pair_id INTEGER NOT NULL REFERENCES conversions(id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
     item_id INTEGER NOT NULL REFERENCES items(id),
     quantity INTEGER NOT NULL DEFAULT 1
 );
 
--- Aggregated volume data for conversion items (from timeseries API)
+-- Presets: admin-curated recipe collections
+CREATE TABLE IF NOT EXISTS presets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+-- Preset recipes
+CREATE TABLE IF NOT EXISTS preset_recipes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    preset_id INTEGER NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0
+);
+
+-- Preset recipe inputs
+CREATE TABLE IF NOT EXISTS preset_recipe_inputs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER NOT NULL REFERENCES preset_recipes(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    quantity INTEGER NOT NULL DEFAULT 1
+);
+
+-- Preset recipe outputs
+CREATE TABLE IF NOT EXISTS preset_recipe_outputs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER NOT NULL REFERENCES preset_recipes(id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES items(id),
+    quantity INTEGER NOT NULL DEFAULT 1
+);
+
+-- Preset imports: tracks which users imported which presets
+CREATE TABLE IF NOT EXISTS preset_imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    preset_id INTEGER NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    imported_at INTEGER DEFAULT (strftime('%s', 'now')),
+    UNIQUE(preset_id, user_id)
+);
+
+-- Aggregated volume data for items (from timeseries API)
 CREATE TABLE IF NOT EXISTS item_volumes (
     item_id INTEGER PRIMARY KEY REFERENCES items(id),
     vol_5m_high INTEGER DEFAULT 0,
@@ -69,19 +123,25 @@ CREATE TABLE IF NOT EXISTS item_volumes (
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_item_prices_updated ON item_prices(updated_at);
-CREATE INDEX IF NOT EXISTS idx_conversions_active ON conversions(active);
-CREATE INDEX IF NOT EXISTS idx_conversion_inputs_pair ON conversion_inputs(pair_id);
-CREATE INDEX IF NOT EXISTS idx_conversion_outputs_pair ON conversion_outputs(pair_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_user ON recipes(user_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_active ON recipes(active);
+CREATE INDEX IF NOT EXISTS idx_recipe_inputs_recipe ON recipe_inputs(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_outputs_recipe ON recipe_outputs(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_items_name ON items(name);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);
+CREATE INDEX IF NOT EXISTS idx_preset_recipes_preset ON preset_recipes(preset_id);
+CREATE INDEX IF NOT EXISTS idx_preset_imports_preset ON preset_imports(preset_id);
 
--- View for calculating conversion profits
+-- View for calculating recipe profits
 -- Profit = (Sum of output sell prices after tax) - (Sum of input buy prices)
 -- GE Tax: 2% capped at 5M GP per item (as of May 2025)
-CREATE VIEW IF NOT EXISTS conversion_profits AS
+CREATE VIEW IF NOT EXISTS recipe_profits AS
 SELECT
-    cp.id,
-    cp.active,
-    cp.sort_order,
+    r.id,
+    r.user_id,
+    r.active,
+    r.sort_order,
     -- Total cost to buy inputs (using high_price = instant buy / ask price)
     COALESCE(inputs.total_cost, 0) AS input_cost,
     -- Total revenue from selling outputs (using low_price = instant sell / bid price)
@@ -98,26 +158,66 @@ SELECT
         THEN ROUND((COALESCE(outputs.total_revenue, 0) - COALESCE(outputs.total_tax, 0) - COALESCE(inputs.total_cost, 0)) * 100.0 / inputs.total_cost, 2)
         ELSE 0
     END AS roi_percent
-FROM conversions cp
+FROM recipes r
 LEFT JOIN (
     SELECT
-        ci.pair_id,
-        SUM(COALESCE(ip.high_price, 0) * ci.quantity) AS total_cost
-    FROM conversion_inputs ci
-    LEFT JOIN item_prices ip ON ci.item_id = ip.item_id
-    GROUP BY ci.pair_id
-) inputs ON cp.id = inputs.pair_id
+        ri.recipe_id,
+        SUM(COALESCE(ip.high_price, 0) * ri.quantity) AS total_cost
+    FROM recipe_inputs ri
+    LEFT JOIN item_prices ip ON ri.item_id = ip.item_id
+    GROUP BY ri.recipe_id
+) inputs ON r.id = inputs.recipe_id
 LEFT JOIN (
     SELECT
-        co.pair_id,
-        SUM(COALESCE(ip.low_price, 0) * co.quantity) AS total_revenue,
+        ro.recipe_id,
+        SUM(COALESCE(ip.low_price, 0) * ro.quantity) AS total_revenue,
         SUM(
             CASE
-                WHEN co.item_id = 995 THEN 0  -- No tax on coins
-                ELSE MIN(CAST(COALESCE(ip.low_price, 0) * co.quantity * 0.02 AS INTEGER), 5000000 * co.quantity)
+                WHEN ro.item_id = 995 THEN 0  -- No tax on coins
+                ELSE MIN(CAST(COALESCE(ip.low_price, 0) * ro.quantity * 0.02 AS INTEGER), 5000000 * ro.quantity)
             END
         ) AS total_tax
-    FROM conversion_outputs co
-    LEFT JOIN item_prices ip ON co.item_id = ip.item_id
-    GROUP BY co.pair_id
-) outputs ON cp.id = outputs.pair_id;
+    FROM recipe_outputs ro
+    LEFT JOIN item_prices ip ON ro.item_id = ip.item_id
+    GROUP BY ro.recipe_id
+) outputs ON r.id = outputs.recipe_id;
+
+-- View for calculating preset recipe profits (same logic as recipe_profits)
+CREATE VIEW IF NOT EXISTS preset_recipe_profits AS
+SELECT
+    pr.id,
+    pr.preset_id,
+    pr.sort_order,
+    COALESCE(inputs.total_cost, 0) AS input_cost,
+    COALESCE(outputs.total_revenue, 0) AS output_revenue,
+    COALESCE(outputs.total_tax, 0) AS total_tax,
+    COALESCE(outputs.total_revenue, 0) - COALESCE(outputs.total_tax, 0) AS output_revenue_after_tax,
+    COALESCE(outputs.total_revenue, 0) - COALESCE(outputs.total_tax, 0) - COALESCE(inputs.total_cost, 0) AS profit,
+    CASE
+        WHEN COALESCE(inputs.total_cost, 0) > 0
+        THEN ROUND((COALESCE(outputs.total_revenue, 0) - COALESCE(outputs.total_tax, 0) - COALESCE(inputs.total_cost, 0)) * 100.0 / inputs.total_cost, 2)
+        ELSE 0
+    END AS roi_percent
+FROM preset_recipes pr
+LEFT JOIN (
+    SELECT
+        pri.recipe_id,
+        SUM(COALESCE(ip.high_price, 0) * pri.quantity) AS total_cost
+    FROM preset_recipe_inputs pri
+    LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
+    GROUP BY pri.recipe_id
+) inputs ON pr.id = inputs.recipe_id
+LEFT JOIN (
+    SELECT
+        pro.recipe_id,
+        SUM(COALESCE(ip.low_price, 0) * pro.quantity) AS total_revenue,
+        SUM(
+            CASE
+                WHEN pro.item_id = 995 THEN 0
+                ELSE MIN(CAST(COALESCE(ip.low_price, 0) * pro.quantity * 0.02 AS INTEGER), 5000000 * pro.quantity)
+            END
+        ) AS total_tax
+    FROM preset_recipe_outputs pro
+    LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
+    GROUP BY pro.recipe_id
+) outputs ON pr.id = outputs.recipe_id;

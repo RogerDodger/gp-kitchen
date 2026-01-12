@@ -1,8 +1,8 @@
 % layout 'default';
-% title 'My Recipes';
+% title 'Edit Preset - ' . stash('preset')->{name};
 
 <div class="admin-dashboard">
-    <h1>My Recipes</h1>
+    <h1>Edit Preset: <%= stash('preset')->{name} %></h1>
 
     % if (flash 'success') {
         <div class="alert alert-success"><%= flash 'success' %></div>
@@ -11,10 +11,25 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
+    <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
+    <a href="/presets/<%= stash('preset')->{id} %>" class="btn btn-secondary">View Preset</a>
+
+    <div class="admin-section">
+        <h2>Preset Details</h2>
+        <form method="post" action="/presets/<%= stash('preset')->{id} %>/edit" class="preset-edit-form">
+            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+            <div class="form-row">
+                <input type="text" name="name" value="<%= stash('preset')->{name} %>" required placeholder="Name">
+                <input type="text" name="description" value="<%= stash('preset')->{description} // '' %>" placeholder="Description">
+                <button type="submit" class="btn btn-small">Update</button>
+            </div>
+        </form>
+    </div>
+
     <div class="admin-section">
         <h2>Recipes</h2>
 
-        <form method="post" action="/recipes" class="new-recipe-form">
+        <form method="post" action="/presets/<%= stash('preset')->{id} %>/recipes" class="new-recipe-form">
             <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
             <button type="submit" class="btn btn-primary">Add New Recipe</button>
         </form>
@@ -28,8 +43,7 @@
                         <th>Sort</th>
                         <th>Inputs</th>
                         <th>Outputs</th>
-                        <th>Live</th>
-                        <th>Status</th>
+                        <th>Profit</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -37,14 +51,14 @@
                     % for my $recipe (@$recipes) {
                         <tr id="recipe-<%= $recipe->{id} %>">
                             <td class="sort-controls">
-                                <form method="post" action="/recipes/reorder" style="display:inline">
+                                <form method="post" action="/presets/<%= stash('preset')->{id} %>/recipes/reorder" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <input type="hidden" name="order" value="<%= $current_order %>">
                                     <input type="hidden" name="id" value="<%= $recipe->{id} %>">
                                     <input type="hidden" name="dir" value="up">
                                     <button type="submit" class="btn btn-small" title="Move up">&#9650;</button>
                                 </form>
-                                <form method="post" action="/recipes/reorder" style="display:inline">
+                                <form method="post" action="/presets/<%= stash('preset')->{id} %>/recipes/reorder" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <input type="hidden" name="order" value="<%= $current_order %>">
                                     <input type="hidden" name="id" value="<%= $recipe->{id} %>">
@@ -70,25 +84,12 @@
                                     <em>None</em>
                                 % }
                             </td>
-                            <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/toggle-live" style="display:inline">
-                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-                                    <button type="submit" class="btn btn-small <%= $recipe->{live} ? 'btn-live' : '' %>">
-                                        <%= $recipe->{live} ? 'Live' : '-' %>
-                                    </button>
-                                </form>
+                            <td class="<%= $recipe->{profit} > 0 ? 'positive' : ($recipe->{profit} < 0 ? 'negative' : '') %>">
+                                <%= format_gp($recipe->{profit}) %>
                             </td>
                             <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/toggle" style="display:inline">
-                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-                                    <button type="submit" class="btn btn-small <%= $recipe->{active} ? 'btn-active' : '' %>">
-                                        <%= $recipe->{active} ? 'Active' : 'Inactive' %>
-                                    </button>
-                                </form>
-                            </td>
-                            <td>
-                                <a href="/recipes/<%= $recipe->{id} %>/edit" class="btn btn-small">Edit</a>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/delete" style="display:inline" onsubmit="return confirm('Delete?')">
+                                <a href="/presets/<%= stash('preset')->{id} %>/recipes/<%= $recipe->{id} %>/edit" class="btn btn-small">Edit</a>
+                                <form method="post" action="/presets/<%= stash('preset')->{id} %>/recipes/<%= $recipe->{id} %>/delete" style="display:inline" onsubmit="return confirm('Delete?')">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Delete</button>
                                 </form>
@@ -98,7 +99,15 @@
                 </tbody>
             </table>
         % } else {
-            <p class="empty-state">No recipes yet. Create one above!</p>
+            <p class="empty-state">No recipes yet. Add one above!</p>
         % }
+    </div>
+
+    <div class="admin-section danger-zone">
+        <h2>Danger Zone</h2>
+        <form method="post" action="/presets/<%= stash('preset')->{id} %>/delete" onsubmit="return confirm('Are you sure you want to delete this preset? This cannot be undone.')">
+            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+            <button type="submit" class="btn btn-danger">Delete Preset</button>
+        </form>
     </div>
 </div>

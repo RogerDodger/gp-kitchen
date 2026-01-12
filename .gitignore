@@ -2,3 +2,4 @@ backups/
 config.yml
 data/
 log/
+.claude

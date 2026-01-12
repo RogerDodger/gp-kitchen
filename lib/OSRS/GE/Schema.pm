@@ -4,6 +4,7 @@ use warnings;
 use DBI;
 use File::Basename qw(dirname);
 use File::Path qw(make_path);
+use Crypt::Bcrypt qw(bcrypt bcrypt_check);
 
 sub new {
     my ($class, %args) = @_;
@@ -81,7 +82,183 @@ sub _init_coins {
     });
 }
 
+# =====================================
+# Migration
+# =====================================
+
+sub migrate {
+    my ($self, $admin_password) = @_;
+    my $dbh = $self->dbh;
+
+    # Check if migration is needed (do old tables exist?)
+    my $has_conversions = $dbh->selectrow_array(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversions'"
+    );
+
+    return unless $has_conversions;
+
+    # Check if new tables already exist
+    my $has_recipes = $dbh->selectrow_array(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='recipes'"
+    );
+    return if $has_recipes;
+
+    $dbh->begin_work;
+    eval {
+        # Create admin user first
+        my $password_hash = bcrypt($admin_password, '2b', 12, _random_salt());
+        $dbh->do(q{
+            INSERT INTO users (username, password_hash, is_guest, is_admin)
+            VALUES ('admin', ?, 0, 1)
+        }, undef, $password_hash);
+        my $admin_id = $dbh->last_insert_id(undef, undef, 'users', 'id');
+
+        # Migrate conversions to recipes
+        $dbh->do(q{
+            INSERT INTO recipes (id, user_id, active, live, sort_order, created_at, updated_at)
+            SELECT id, ?, active, live, sort_order, created_at, updated_at
+            FROM conversions
+        }, undef, $admin_id);
+
+        # Migrate conversion_inputs to recipe_inputs
+        $dbh->do(q{
+            INSERT INTO recipe_inputs (id, recipe_id, item_id, quantity)
+            SELECT id, pair_id, item_id, quantity
+            FROM conversion_inputs
+        });
+
+        # Migrate conversion_outputs to recipe_outputs
+        $dbh->do(q{
+            INSERT INTO recipe_outputs (id, recipe_id, item_id, quantity)
+            SELECT id, pair_id, item_id, quantity
+            FROM conversion_outputs
+        });
+
+        # Drop old view first (it depends on old tables)
+        $dbh->do('DROP VIEW IF EXISTS conversion_profits');
+
+        # Drop old tables
+        $dbh->do('DROP TABLE IF EXISTS conversion_inputs');
+        $dbh->do('DROP TABLE IF EXISTS conversion_outputs');
+        $dbh->do('DROP TABLE IF EXISTS conversions');
+
+        $dbh->commit;
+    };
+    if ($@) {
+        $dbh->rollback;
+        die "Migration failed: $@";
+    }
+}
+
+sub _random_salt {
+    my @chars = ('a'..'z', 'A'..'Z', '0'..'9');
+    my $salt = '';
+    $salt .= $chars[rand @chars] for 1..16;
+    return $salt;
+}
+
+# =====================================
+# User methods
+# =====================================
+
+sub create_user {
+    my ($self, %args) = @_;
+    my $dbh = $self->dbh;
+
+    my $password_hash = undef;
+    if ($args{password}) {
+        $password_hash = bcrypt($args{password}, '2b', 12, _random_salt());
+    }
+
+    $dbh->do(q{
+        INSERT INTO users (username, password_hash, is_guest, is_admin)
+        VALUES (?, ?, ?, ?)
+    }, undef,
+        $args{username},
+        $password_hash,
+        $args{is_guest} ? 1 : 0,
+        $args{is_admin} ? 1 : 0,
+    );
+
+    return $dbh->last_insert_id(undef, undef, 'users', 'id');
+}
+
+sub create_guest_user {
+    my ($self) = @_;
+    my $username = 'guest_' . _random_string(12);
+    return $self->create_user(
+        username => $username,
+        is_guest => 1,
+    );
+}
+
+sub _random_string {
+    my ($len) = @_;
+    my @chars = ('a'..'z', 'A'..'Z', '0'..'9');
+    my $str = '';
+    $str .= $chars[rand @chars] for 1..$len;
+    return $str;
+}
+
+sub get_user {
+    my ($self, $id) = @_;
+    return $self->dbh->selectrow_hashref(
+        'SELECT * FROM users WHERE id = ?', undef, $id
+    );
+}
+
+sub get_user_by_username {
+    my ($self, $username) = @_;
+    return $self->dbh->selectrow_hashref(
+        'SELECT * FROM users WHERE username = ?', undef, $username
+    );
+}
+
+sub authenticate_user {
+    my ($self, $username, $password) = @_;
+    my $user = $self->get_user_by_username($username);
+    return unless $user && $user->{password_hash};
+    return bcrypt_check($password, $user->{password_hash}) ? $user : undef;
+}
+
+sub update_user_last_active {
+    my ($self, $user_id) = @_;
+    $self->dbh->do(q{
+        UPDATE users SET last_active = strftime('%s', 'now') WHERE id = ?
+    }, undef, $user_id);
+}
+
+sub register_guest {
+    my ($self, $user_id, $username, $password) = @_;
+    my $dbh = $self->dbh;
+
+    # Check username availability
+    my $existing = $self->get_user_by_username($username);
+    return { error => 'Username already taken' } if $existing;
+
+    my $password_hash = bcrypt($password, '2b', 12, _random_salt());
+
+    $dbh->do(q{
+        UPDATE users SET username = ?, password_hash = ?, is_guest = 0
+        WHERE id = ? AND is_guest = 1
+    }, undef, $username, $password_hash, $user_id);
+
+    return { success => 1 };
+}
+
+sub cleanup_inactive_guests {
+    my ($self, $days) = @_;
+    $days //= 30;
+    my $cutoff = time() - ($days * 86400);
+    $self->dbh->do(q{
+        DELETE FROM users WHERE is_guest = 1 AND last_active < ?
+    }, undef, $cutoff);
+}
+
+# =====================================
 # Item methods
+# =====================================
+
 sub upsert_item {
     my ($self, $item) = @_;
     my $sql = q{
@@ -135,7 +312,10 @@ sub search_items {
     return $self->dbh->selectall_arrayref($sql, { Slice => {} }, "%$query%", $limit);
 }
 
+# =====================================
 # Price methods
+# =====================================
+
 sub upsert_price {
     my ($self, $item_id, $price_data) = @_;
     my $sql = q{
@@ -237,21 +417,26 @@ sub bulk_upsert_5m_prices {
     }
 }
 
-# Conversion pair methods
-sub create_conversion_pair {
-    my ($self) = @_;
-    my ($max_order) = $self->dbh->selectrow_array(
-        'SELECT COALESCE(MAX(sort_order), -1) FROM conversions'
+# =====================================
+# Recipe methods
+# =====================================
+
+sub create_recipe {
+    my ($self, $user_id) = @_;
+    my $dbh = $self->dbh;
+    my ($max_order) = $dbh->selectrow_array(
+        'SELECT COALESCE(MAX(sort_order), -1) FROM recipes WHERE user_id = ?',
+        undef, $user_id
     );
     my $sql = q{
-        INSERT INTO conversions (sort_order, created_at, updated_at)
-        VALUES (?, strftime('%s', 'now'), strftime('%s', 'now'))
+        INSERT INTO recipes (user_id, sort_order, created_at, updated_at)
+        VALUES (?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
     };
-    $self->dbh->do($sql, undef, $max_order + 1);
-    return $self->dbh->last_insert_id(undef, undef, 'conversions', 'id');
+    $dbh->do($sql, undef, $user_id, $max_order + 1);
+    return $dbh->last_insert_id(undef, undef, 'recipes', 'id');
 }
 
-sub update_conversion_pair {
+sub update_recipe {
     my ($self, $id, $data) = @_;
     my @sets;
     my @values;
@@ -266,41 +451,43 @@ sub update_conversion_pair {
     return unless @sets;
 
     push @sets, "updated_at = strftime('%s', 'now')";
-    my $sql = "UPDATE conversions SET " . join(', ', @sets) . " WHERE id = ?";
+    my $sql = "UPDATE recipes SET " . join(', ', @sets) . " WHERE id = ?";
     $self->dbh->do($sql, undef, @values, $id);
 }
 
-sub delete_conversion_pair {
+sub delete_recipe {
     my ($self, $id) = @_;
-    $self->dbh->do('DELETE FROM conversions WHERE id = ?', undef, $id);
+    $self->dbh->do('DELETE FROM recipes WHERE id = ?', undef, $id);
 }
 
-sub toggle_conversion_active {
+sub toggle_recipe_active {
     my ($self, $id) = @_;
     $self->dbh->do(q{
-        UPDATE conversions SET active = NOT active, updated_at = strftime('%s', 'now')
+        UPDATE recipes SET active = NOT active, updated_at = strftime('%s', 'now')
         WHERE id = ?
     }, undef, $id);
 }
 
-sub toggle_conversion_live {
-    my ($self, $id) = @_;
+sub toggle_recipe_live {
+    my ($self, $id, $user_id) = @_;
+    my $dbh = $self->dbh;
 
     # Get current state
-    my $conv = $self->dbh->selectrow_hashref(
-        'SELECT id, live FROM conversions WHERE id = ?', undef, $id
+    my $recipe = $dbh->selectrow_hashref(
+        'SELECT id, live FROM recipes WHERE id = ? AND user_id = ?',
+        undef, $id, $user_id
     );
-    return unless $conv;
+    return unless $recipe;
 
-    my $new_live = $conv->{live} ? 0 : 1;
+    my $new_live = $recipe->{live} ? 0 : 1;
 
-    # Get all conversions in current visual order
-    my $all = $self->dbh->selectall_arrayref(
-        'SELECT id, live FROM conversions ORDER BY live DESC, sort_order, id',
-        { Slice => {} }
+    # Get all recipes for this user in current visual order
+    my $all = $dbh->selectall_arrayref(
+        'SELECT id, live FROM recipes WHERE user_id = ? ORDER BY live DESC, sort_order, id',
+        { Slice => {} }, $user_id
     );
 
-    # Remove the toggled conversion from the list
+    # Remove the toggled recipe from the list
     my @others = grep { $_->{id} != $id } @$all;
 
     # Find insertion point
@@ -321,125 +508,145 @@ sub toggle_conversion_live {
     @new_order = map { ref($_) ? $_->{id} : $_ } @new_order;
 
     # Update the live status
-    $self->dbh->do(q{
-        UPDATE conversions SET live = ?, updated_at = strftime('%s', 'now')
+    $dbh->do(q{
+        UPDATE recipes SET live = ?, updated_at = strftime('%s', 'now')
         WHERE id = ?
     }, undef, $new_live, $id);
 
     # Renumber all
-    $self->reorder_conversions(\@new_order);
+    $self->reorder_recipes(\@new_order);
 }
 
-sub reorder_conversions {
+sub reorder_recipes {
     my ($self, $ids) = @_;
     my $order = 0;
     for my $id (@$ids) {
-        $self->dbh->do('UPDATE conversions SET sort_order = ? WHERE id = ?',
+        $self->dbh->do('UPDATE recipes SET sort_order = ? WHERE id = ?',
             undef, $order++, $id);
     }
 }
 
-sub get_conversion_pair {
+sub get_recipe {
     my ($self, $id) = @_;
-    my $sql = 'SELECT * FROM conversions WHERE id = ?';
-    my $pair = $self->dbh->selectrow_hashref($sql, undef, $id);
-    return unless $pair;
+    my $sql = 'SELECT * FROM recipes WHERE id = ?';
+    my $recipe = $self->dbh->selectrow_hashref($sql, undef, $id);
+    return unless $recipe;
 
     # Get inputs
-    $pair->{inputs} = $self->dbh->selectall_arrayref(q{
-        SELECT ci.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM conversion_inputs ci
-        JOIN items i ON ci.item_id = i.id
-        LEFT JOIN item_prices ip ON ci.item_id = ip.item_id
-        WHERE ci.pair_id = ?
+    $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
+        SELECT ri.*, i.name, i.icon, ip.high_price, ip.low_price
+        FROM recipe_inputs ri
+        JOIN items i ON ri.item_id = i.id
+        LEFT JOIN item_prices ip ON ri.item_id = ip.item_id
+        WHERE ri.recipe_id = ?
     }, { Slice => {} }, $id);
 
     # Get outputs
-    $pair->{outputs} = $self->dbh->selectall_arrayref(q{
-        SELECT co.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM conversion_outputs co
-        JOIN items i ON co.item_id = i.id
-        LEFT JOIN item_prices ip ON co.item_id = ip.item_id
-        WHERE co.pair_id = ?
+    $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
+        SELECT ro.*, i.name, i.icon, ip.high_price, ip.low_price
+        FROM recipe_outputs ro
+        JOIN items i ON ro.item_id = i.id
+        LEFT JOIN item_prices ip ON ro.item_id = ip.item_id
+        WHERE ro.recipe_id = ?
     }, { Slice => {} }, $id);
 
-    return $pair;
+    return $recipe;
 }
 
-sub get_all_conversions {
-    my ($self, $active_only) = @_;
+sub get_all_recipes {
+    my ($self, $user_id, $active_only) = @_;
     my $sql = q{
-        SELECT cp.*,
+        SELECT r.*,
                COALESCE(profit_data.input_cost, 0) as input_cost,
                COALESCE(profit_data.output_revenue, 0) as output_revenue,
                COALESCE(profit_data.total_tax, 0) as total_tax,
                COALESCE(profit_data.output_revenue_after_tax, 0) as output_revenue_after_tax,
                COALESCE(profit_data.profit, 0) as profit,
                COALESCE(profit_data.roi_percent, 0) as roi_percent
-        FROM conversions cp
-        LEFT JOIN conversion_profits profit_data ON cp.id = profit_data.id
+        FROM recipes r
+        LEFT JOIN recipe_profits profit_data ON r.id = profit_data.id
+        WHERE r.user_id = ?
     };
-    $sql .= ' WHERE cp.active = 1' if $active_only;
-    $sql .= ' ORDER BY cp.sort_order, cp.id';
+    $sql .= ' AND r.active = 1' if $active_only;
+    $sql .= ' ORDER BY r.sort_order, r.id';
 
-    my $pairs = $self->dbh->selectall_arrayref($sql, { Slice => {} });
+    my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $user_id);
 
-    # Fetch inputs and outputs for each pair
-    for my $pair (@$pairs) {
-        $pair->{inputs} = $self->dbh->selectall_arrayref(q{
-            SELECT ci.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
+    # Fetch inputs and outputs for each recipe
+    for my $recipe (@$recipes) {
+        $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
+            SELECT ri.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
                    iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
                    iv.vol_24h_high, iv.vol_24h_low
-            FROM conversion_inputs ci
-            JOIN items i ON ci.item_id = i.id
-            LEFT JOIN item_prices ip ON ci.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON ci.item_id = iv.item_id
-            WHERE ci.pair_id = ?
-        }, { Slice => {} }, $pair->{id});
+            FROM recipe_inputs ri
+            JOIN items i ON ri.item_id = i.id
+            LEFT JOIN item_prices ip ON ri.item_id = ip.item_id
+            LEFT JOIN item_volumes iv ON ri.item_id = iv.item_id
+            WHERE ri.recipe_id = ?
+        }, { Slice => {} }, $recipe->{id});
 
-        $pair->{outputs} = $self->dbh->selectall_arrayref(q{
-            SELECT co.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
+        $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
+            SELECT ro.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
                    iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
                    iv.vol_24h_high, iv.vol_24h_low
-            FROM conversion_outputs co
-            JOIN items i ON co.item_id = i.id
-            LEFT JOIN item_prices ip ON co.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON co.item_id = iv.item_id
-            WHERE co.pair_id = ?
-        }, { Slice => {} }, $pair->{id});
+            FROM recipe_outputs ro
+            JOIN items i ON ro.item_id = i.id
+            LEFT JOIN item_prices ip ON ro.item_id = ip.item_id
+            LEFT JOIN item_volumes iv ON ro.item_id = iv.item_id
+            WHERE ro.recipe_id = ?
+        }, { Slice => {} }, $recipe->{id});
     }
 
-    return $pairs;
+    return $recipes;
 }
 
-# Input/Output management
-sub add_conversion_input {
-    my ($self, $pair_id, $item_id, $quantity) = @_;
+# =====================================
+# Recipe Input/Output management
+# =====================================
+
+sub add_recipe_input {
+    my ($self, $recipe_id, $item_id, $quantity) = @_;
     $quantity //= 1;
-    my $sql = 'INSERT INTO conversion_inputs (pair_id, item_id, quantity) VALUES (?, ?, ?)';
-    $self->dbh->do($sql, undef, $pair_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'conversion_inputs', 'id');
+    my $sql = 'INSERT INTO recipe_inputs (recipe_id, item_id, quantity) VALUES (?, ?, ?)';
+    $self->dbh->do($sql, undef, $recipe_id, $item_id, $quantity);
+    return $self->dbh->last_insert_id(undef, undef, 'recipe_inputs', 'id');
 }
 
-sub add_conversion_output {
-    my ($self, $pair_id, $item_id, $quantity) = @_;
+sub add_recipe_output {
+    my ($self, $recipe_id, $item_id, $quantity) = @_;
     $quantity //= 1;
-    my $sql = 'INSERT INTO conversion_outputs (pair_id, item_id, quantity) VALUES (?, ?, ?)';
-    $self->dbh->do($sql, undef, $pair_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'conversion_outputs', 'id');
+    my $sql = 'INSERT INTO recipe_outputs (recipe_id, item_id, quantity) VALUES (?, ?, ?)';
+    $self->dbh->do($sql, undef, $recipe_id, $item_id, $quantity);
+    return $self->dbh->last_insert_id(undef, undef, 'recipe_outputs', 'id');
 }
 
-sub remove_conversion_input {
+sub remove_recipe_input {
     my ($self, $input_id) = @_;
-    $self->dbh->do('DELETE FROM conversion_inputs WHERE id = ?', undef, $input_id);
+    $self->dbh->do('DELETE FROM recipe_inputs WHERE id = ?', undef, $input_id);
 }
 
-sub remove_conversion_output {
+sub remove_recipe_output {
     my ($self, $output_id) = @_;
-    $self->dbh->do('DELETE FROM conversion_outputs WHERE id = ?', undef, $output_id);
+    $self->dbh->do('DELETE FROM recipe_outputs WHERE id = ?', undef, $output_id);
 }
 
+# =====================================
+# Recipe ownership check
+# =====================================
+
+sub user_owns_recipe {
+    my ($self, $user_id, $recipe_id) = @_;
+    my ($count) = $self->dbh->selectrow_array(
+        'SELECT 1 FROM recipes WHERE id = ? AND user_id = ?',
+        undef, $recipe_id, $user_id
+    );
+    return $count;
+}
+
+# =====================================
 # Stats
+# =====================================
+
 sub get_price_stats {
     my ($self) = @_;
     my $sql = q{
@@ -453,7 +660,10 @@ sub get_price_stats {
     return $self->dbh->selectrow_hashref($sql);
 }
 
+# =====================================
 # Volume methods
+# =====================================
+
 sub upsert_item_volumes {
     my ($self, $item_id, $volumes) = @_;
     my $sql = q{
@@ -478,6 +688,296 @@ sub upsert_item_volumes {
         $volumes->{vol_24h_high} // 0,
         $volumes->{vol_24h_low} // 0,
     );
+}
+
+# =====================================
+# Preset methods
+# =====================================
+
+sub create_preset {
+    my ($self, $name, $description, $created_by) = @_;
+    my $dbh = $self->dbh;
+    $dbh->do(q{
+        INSERT INTO presets (name, description, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+    }, undef, $name, $description, $created_by);
+    return $dbh->last_insert_id(undef, undef, 'presets', 'id');
+}
+
+sub update_preset {
+    my ($self, $id, $name, $description) = @_;
+    $self->dbh->do(q{
+        UPDATE presets SET name = ?, description = ?, updated_at = strftime('%s', 'now')
+        WHERE id = ?
+    }, undef, $name, $description, $id);
+}
+
+sub delete_preset {
+    my ($self, $id) = @_;
+    $self->dbh->do('DELETE FROM presets WHERE id = ?', undef, $id);
+}
+
+sub get_preset {
+    my ($self, $id) = @_;
+    my $preset = $self->dbh->selectrow_hashref(
+        'SELECT * FROM presets WHERE id = ?', undef, $id
+    );
+    return unless $preset;
+
+    # Get import count
+    my ($import_count) = $self->dbh->selectrow_array(
+        'SELECT COUNT(*) FROM preset_imports WHERE preset_id = ?', undef, $id
+    );
+    $preset->{import_count} = $import_count // 0;
+
+    return $preset;
+}
+
+sub get_all_presets {
+    my ($self, $limit) = @_;
+    $limit //= 50;
+    my $sql = q{
+        SELECT p.*,
+               COALESCE(ic.import_count, 0) as import_count,
+               u.username as created_by_username
+        FROM presets p
+        LEFT JOIN (
+            SELECT preset_id, COUNT(*) as import_count
+            FROM preset_imports
+            GROUP BY preset_id
+        ) ic ON p.id = ic.preset_id
+        LEFT JOIN users u ON p.created_by = u.id
+        ORDER BY import_count DESC, p.created_at DESC
+        LIMIT ?
+    };
+    return $self->dbh->selectall_arrayref($sql, { Slice => {} }, $limit);
+}
+
+# =====================================
+# Preset recipe methods
+# =====================================
+
+sub create_preset_recipe {
+    my ($self, $preset_id) = @_;
+    my $dbh = $self->dbh;
+    my ($max_order) = $dbh->selectrow_array(
+        'SELECT COALESCE(MAX(sort_order), -1) FROM preset_recipes WHERE preset_id = ?',
+        undef, $preset_id
+    );
+    $dbh->do(q{
+        INSERT INTO preset_recipes (preset_id, sort_order)
+        VALUES (?, ?)
+    }, undef, $preset_id, $max_order + 1);
+    return $dbh->last_insert_id(undef, undef, 'preset_recipes', 'id');
+}
+
+sub delete_preset_recipe {
+    my ($self, $id) = @_;
+    $self->dbh->do('DELETE FROM preset_recipes WHERE id = ?', undef, $id);
+}
+
+sub get_preset_recipe {
+    my ($self, $id) = @_;
+    my $recipe = $self->dbh->selectrow_hashref(
+        'SELECT * FROM preset_recipes WHERE id = ?', undef, $id
+    );
+    return unless $recipe;
+
+    # Get inputs
+    $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
+        SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price
+        FROM preset_recipe_inputs pri
+        JOIN items i ON pri.item_id = i.id
+        LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
+        WHERE pri.recipe_id = ?
+    }, { Slice => {} }, $id);
+
+    # Get outputs
+    $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
+        SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price
+        FROM preset_recipe_outputs pro
+        JOIN items i ON pro.item_id = i.id
+        LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
+        WHERE pro.recipe_id = ?
+    }, { Slice => {} }, $id);
+
+    return $recipe;
+}
+
+sub get_preset_recipes {
+    my ($self, $preset_id) = @_;
+    my $sql = q{
+        SELECT pr.*,
+               COALESCE(profit_data.input_cost, 0) as input_cost,
+               COALESCE(profit_data.output_revenue, 0) as output_revenue,
+               COALESCE(profit_data.total_tax, 0) as total_tax,
+               COALESCE(profit_data.output_revenue_after_tax, 0) as output_revenue_after_tax,
+               COALESCE(profit_data.profit, 0) as profit,
+               COALESCE(profit_data.roi_percent, 0) as roi_percent
+        FROM preset_recipes pr
+        LEFT JOIN preset_recipe_profits profit_data ON pr.id = profit_data.id
+        WHERE pr.preset_id = ?
+        ORDER BY pr.sort_order, pr.id
+    };
+
+    my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $preset_id);
+
+    # Fetch inputs and outputs for each recipe
+    for my $recipe (@$recipes) {
+        $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
+            SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
+                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
+                   iv.vol_24h_high, iv.vol_24h_low
+            FROM preset_recipe_inputs pri
+            JOIN items i ON pri.item_id = i.id
+            LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
+            LEFT JOIN item_volumes iv ON pri.item_id = iv.item_id
+            WHERE pri.recipe_id = ?
+        }, { Slice => {} }, $recipe->{id});
+
+        $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
+            SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
+                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
+                   iv.vol_24h_high, iv.vol_24h_low
+            FROM preset_recipe_outputs pro
+            JOIN items i ON pro.item_id = i.id
+            LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
+            LEFT JOIN item_volumes iv ON pro.item_id = iv.item_id
+            WHERE pro.recipe_id = ?
+        }, { Slice => {} }, $recipe->{id});
+    }
+
+    return $recipes;
+}
+
+sub reorder_preset_recipes {
+    my ($self, $ids) = @_;
+    my $order = 0;
+    for my $id (@$ids) {
+        $self->dbh->do('UPDATE preset_recipes SET sort_order = ? WHERE id = ?',
+            undef, $order++, $id);
+    }
+}
+
+# Preset recipe input/output management
+sub add_preset_recipe_input {
+    my ($self, $recipe_id, $item_id, $quantity) = @_;
+    $quantity //= 1;
+    $self->dbh->do(q{
+        INSERT INTO preset_recipe_inputs (recipe_id, item_id, quantity)
+        VALUES (?, ?, ?)
+    }, undef, $recipe_id, $item_id, $quantity);
+    return $self->dbh->last_insert_id(undef, undef, 'preset_recipe_inputs', 'id');
+}
+
+sub add_preset_recipe_output {
+    my ($self, $recipe_id, $item_id, $quantity) = @_;
+    $quantity //= 1;
+    $self->dbh->do(q{
+        INSERT INTO preset_recipe_outputs (recipe_id, item_id, quantity)
+        VALUES (?, ?, ?)
+    }, undef, $recipe_id, $item_id, $quantity);
+    return $self->dbh->last_insert_id(undef, undef, 'preset_recipe_outputs', 'id');
+}
+
+sub remove_preset_recipe_input {
+    my ($self, $input_id) = @_;
+    $self->dbh->do('DELETE FROM preset_recipe_inputs WHERE id = ?', undef, $input_id);
+}
+
+sub remove_preset_recipe_output {
+    my ($self, $output_id) = @_;
+    $self->dbh->do('DELETE FROM preset_recipe_outputs WHERE id = ?', undef, $output_id);
+}
+
+# Check if recipe belongs to preset
+sub preset_owns_recipe {
+    my ($self, $preset_id, $recipe_id) = @_;
+    my ($count) = $self->dbh->selectrow_array(
+        'SELECT 1 FROM preset_recipes WHERE id = ? AND preset_id = ?',
+        undef, $recipe_id, $preset_id
+    );
+    return $count;
+}
+
+# =====================================
+# Preset import
+# =====================================
+
+sub import_preset {
+    my ($self, $preset_id, $user_id, $recipe_ids) = @_;
+    my $dbh = $self->dbh;
+
+    $dbh->begin_work;
+    eval {
+        # Record the import (or ignore if already imported)
+        $dbh->do(q{
+            INSERT OR IGNORE INTO preset_imports (preset_id, user_id, imported_at)
+            VALUES (?, ?, strftime('%s', 'now'))
+        }, undef, $preset_id, $user_id);
+
+        # Get max sort order for user's recipes
+        my ($max_order) = $dbh->selectrow_array(
+            'SELECT COALESCE(MAX(sort_order), -1) FROM recipes WHERE user_id = ?',
+            undef, $user_id
+        );
+
+        # Import selected recipes
+        for my $preset_recipe_id (@$recipe_ids) {
+            # Verify recipe belongs to preset
+            next unless $self->preset_owns_recipe($preset_id, $preset_recipe_id);
+
+            $max_order++;
+
+            # Create user recipe
+            $dbh->do(q{
+                INSERT INTO recipes (user_id, active, live, sort_order, created_at, updated_at)
+                VALUES (?, 1, 0, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+            }, undef, $user_id, $max_order);
+            my $new_recipe_id = $dbh->last_insert_id(undef, undef, 'recipes', 'id');
+
+            # Copy inputs
+            my $inputs = $dbh->selectall_arrayref(
+                'SELECT item_id, quantity FROM preset_recipe_inputs WHERE recipe_id = ?',
+                { Slice => {} }, $preset_recipe_id
+            );
+            for my $input (@$inputs) {
+                $dbh->do(q{
+                    INSERT INTO recipe_inputs (recipe_id, item_id, quantity)
+                    VALUES (?, ?, ?)
+                }, undef, $new_recipe_id, $input->{item_id}, $input->{quantity});
+            }
+
+            # Copy outputs
+            my $outputs = $dbh->selectall_arrayref(
+                'SELECT item_id, quantity FROM preset_recipe_outputs WHERE recipe_id = ?',
+                { Slice => {} }, $preset_recipe_id
+            );
+            for my $output (@$outputs) {
+                $dbh->do(q{
+                    INSERT INTO recipe_outputs (recipe_id, item_id, quantity)
+                    VALUES (?, ?, ?)
+                }, undef, $new_recipe_id, $output->{item_id}, $output->{quantity});
+            }
+        }
+
+        $dbh->commit;
+    };
+    if ($@) {
+        $dbh->rollback;
+        die "Import failed: $@";
+    }
+
+    return 1;
+}
+
+sub has_imported_preset {
+    my ($self, $preset_id, $user_id) = @_;
+    my ($count) = $self->dbh->selectrow_array(
+        'SELECT 1 FROM preset_imports WHERE preset_id = ? AND user_id = ?',
+        undef, $preset_id, $user_id
+    );
+    return $count;
 }
 
 1;

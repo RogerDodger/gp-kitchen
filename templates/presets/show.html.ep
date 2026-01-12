@@ -1,17 +1,31 @@
 % layout 'default';
-% title 'Dashboard';
+% title $preset->{name};
 
-<div class="dashboard" data-mode="patient" data-vol="4h">
-    <h1>Your Dashboard</h1>
+<div class="preset-view dashboard" data-mode="patient" data-vol="4h">
+    <div class="preset-header-section">
+        <h1><%= stash('preset')->{name} %></h1>
+        % if (stash('preset')->{description}) {
+            <p class="preset-description"><%= stash('preset')->{description} %></p>
+        % }
+        <div class="preset-meta">
+            <span class="import-count"><%= stash('preset')->{import_count} %> imports</span>
+            % if (stash('has_imported')) {
+                <span class="already-imported">You've imported this preset</span>
+            % }
+        </div>
+        <div class="preset-actions">
+            <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
+            <a href="/presets/<%= stash('preset')->{id} %>/import" class="btn btn-primary">Import to Dashboard</a>
+            % if (is_admin) {
+                <a href="/presets/<%= stash('preset')->{id} %>/recipes" class="btn btn-small">Edit</a>
+            % }
+        </div>
+    </div>
 
     <div class="price-mode-toggle">
         <label>Price Mode:</label>
         <button type="button" class="btn btn-toggle mode-toggle" data-mode="instant">Instant</button>
         <button type="button" class="btn btn-toggle mode-toggle active" data-mode="patient">Patient</button>
-        <span class="mode-hint">
-            <span class="instant-only">Buy at ask, sell at bid</span>
-            <span class="patient-only">Buy at bid, sell at ask (better margins, slower)</span>
-        </span>
     </div>
 
     <div class="price-mode-toggle">
@@ -187,28 +201,14 @@
         </div>
     % } else {
         <div class="empty-state">
-            <p>No recipes configured yet.</p>
-            % if (is_authenticated) {
-                <a href="/recipes" class="btn btn-primary">Create Recipes</a>
-            % } else {
-                <p>Browse <a href="/presets">presets</a> to get started, or <a href="/login">login</a> to create your own.</p>
-            % }
-        </div>
-    % }
-
-    % if (is_authenticated) {
-        <div class="dashboard-actions">
-            <a href="/recipes" class="btn btn-secondary">Edit dashboard</a>
+            <p>This preset has no recipes yet.</p>
         </div>
     % }
 </div>
 
 <style>
-/* Mode visibility - controlled by data-mode on .dashboard */
 .dashboard[data-mode="instant"] .patient-only { display: none !important; }
 .dashboard[data-mode="patient"] .instant-only { display: none !important; }
-
-/* Volume visibility - controlled by data-vol on .dashboard */
 .dashboard[data-vol="5m"] .vol:not(.vol-5m) { display: none !important; }
 .dashboard[data-vol="4h"] .vol:not(.vol-4h) { display: none !important; }
 .dashboard[data-vol="24h"] .vol:not(.vol-24h) { display: none !important; }
@@ -217,8 +217,6 @@
 <script>
 (function() {
     const dashboard = document.querySelector('.dashboard');
-
-    // Mode toggle
     document.querySelectorAll('.mode-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const mode = btn.dataset.mode;
@@ -226,8 +224,6 @@
             document.querySelectorAll('.mode-toggle').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
         });
     });
-
-    // Volume toggle
     document.querySelectorAll('.vol-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const vol = btn.dataset.vol;

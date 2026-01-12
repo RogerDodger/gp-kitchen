@@ -1,0 +1,28 @@
+% layout 'default';
+% title 'Create Preset';
+
+<div class="create-preset">
+    <h1>Create New Preset</h1>
+
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
+
+    <form method="post" action="/presets/new" class="preset-form">
+        <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required autofocus maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Preset</button>
+    </form>
+</div>
