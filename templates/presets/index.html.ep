@@ -18,19 +18,11 @@
         % for my $preset (@$presets) {
             <div class="preset-section">
                 <div class="preset-section-header">
-                    <div class="preset-section-info">
-                        <h2><%= $preset->{name} %></h2>
-                        <span class="preset-meta-inline">
-                            <span class="import-count"><%= $preset->{import_count} %> imports</span>
-                            <span class="recipe-count"><%= $preset->{total_recipes} %> recipes</span>
-                        </span>
-                    </div>
-                    <div class="preset-section-actions">
-                        <a href="/presets/<%= $preset->{id} %>/import" class="btn btn-primary btn-small">Import</a>
-                        % if (is_admin) {
-                            <a href="/presets/<%= $preset->{id} %>/recipes" class="btn btn-small">Edit</a>
-                        % }
-                    </div>
+                    <h2><%= $preset->{name} %></h2>
+                    % if (is_admin) {
+                        <a href="/presets/<%= $preset->{id} %>/recipes" class="btn btn-secondary btn-small">Edit</a>
+                    % }
+                    <span class="preset-recipe-count"><%= $preset->{total_recipes} %> recipes</span>
                 </div>
 
                 % if (@{$preset->{recipes}}) {
@@ -54,6 +46,17 @@
                     </div>
                     </div>
                     <button type="button" class="preset-expand-btn">Expand</button>
+                    <div class="preset-footer">
+                        <a href="/presets/<%= $preset->{id} %>/import" class="btn btn-primary btn-small">Import</a>
+                        <span class="preset-imports">
+                            % if ($preset->{import_count} == 1) {
+                                1 user has
+                            % } else {
+                                <%= $preset->{import_count} %> users have
+                            % }
+                            imported from this preset
+                        </span>
+                    </div>
                     </div>
                 % } else {
                     <p class="empty-hint">No recipes in this preset yet.</p>
@@ -69,54 +72,6 @@
         </div>
     % }
 </div>
-
-<style>
-.dashboard[data-mode="instant"] .patient-only { display: none !important; }
-.dashboard[data-mode="patient"] .instant-only { display: none !important; }
-.dashboard[data-vol="5m"] .vol:not(.vol-5m) { display: none !important; }
-.dashboard[data-vol="4h"] .vol:not(.vol-4h) { display: none !important; }
-.dashboard[data-vol="24h"] .vol:not(.vol-24h) { display: none !important; }
-
-.preset-recipes-wrapper {
-    position: relative;
-}
-.preset-recipes-container {
-    position: relative;
-}
-.preset-recipes-wrapper.collapsed .preset-recipes-container {
-    max-height: 250px;
-    overflow: hidden;
-}
-.preset-recipes-wrapper.collapsed .preset-recipes-container::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 1px;
-    right: 1px;
-    height: 30px;
-    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
-    pointer-events: none;
-}
-.preset-expand-btn {
-    display: block;
-    width: 100%;
-    padding: 0.2rem 0.5rem;
-    margin-top: 0;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-top: 0;
-    border-radius: 0 0 8px 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-.preset-expand-btn:hover {
-    background: var(--bg-tertiary);
-}
-.preset-recipes-wrapper .recipes-grid {
-    border-radius: 8px 8px 0 0;
-}
-</style>
 
 <script>
 (function() {

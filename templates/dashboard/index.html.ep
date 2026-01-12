@@ -27,7 +27,7 @@
     % } else {
         <div class="empty-state">
             <p>Your dashboard is empty.</p>
-            <p>Browse <a href="/presets">presets</a> to jumpstart it, or add your own <a href="/recipes">recipes</a>.</p>
+            <p>Browse <a href="/presets">presets</a> to jumpstart it, or create your own <a href="/recipes">recipes</a>.</p>
         </div>
     % }
 
@@ -37,17 +37,6 @@
         </div>
     % }
 </div>
-
-<style>
-/* Mode visibility - controlled by data-mode on .dashboard */
-.dashboard[data-mode="instant"] .patient-only { display: none !important; }
-.dashboard[data-mode="patient"] .instant-only { display: none !important; }
-
-/* Volume visibility - controlled by data-vol on .dashboard */
-.dashboard[data-vol="5m"] .vol:not(.vol-5m) { display: none !important; }
-.dashboard[data-vol="4h"] .vol:not(.vol-4h) { display: none !important; }
-.dashboard[data-vol="24h"] .vol:not(.vol-24h) { display: none !important; }
-</style>
 
 <script>
 (function() {

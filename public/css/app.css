@@ -260,6 +260,13 @@ select:focus {
     color: var(--text-primary);
 }
 
+/* Mode/Volume visibility toggles - controlled by data-mode/data-vol on .dashboard */
+.dashboard[data-mode="instant"] .patient-only { display: none !important; }
+.dashboard[data-mode="patient"] .instant-only { display: none !important; }
+.dashboard[data-vol="5m"] .vol:not(.vol-5m) { display: none !important; }
+.dashboard[data-vol="4h"] .vol:not(.vol-4h) { display: none !important; }
+.dashboard[data-vol="24h"] .vol:not(.vol-24h) { display: none !important; }
+
 .dashboard-actions {
     margin-top: 1.5rem;
     text-align: center;
@@ -984,43 +991,31 @@ a.item-name:hover {
 
 /* Preset Sections (dashboard-style) */
 .preset-section {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    margin-top: 1rem;
 }
 
 .preset-section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-flow: row wrap;
+    align-items: baseline;
+    gap: 0 1rem;
+    margin-bottom: 0.2em;
 }
 
-.preset-section-info h2 {
-    font-size: 1.125rem;
-    font-weight: 600;
+.preset-section-header h2 {
+    font-size: 1.35rem;
+    font-weight: 400;
     margin: 0;
 }
 
-.preset-section-info h2 a {
-    color: var(--text-primary);
-    text-decoration: none;
-}
-
-.preset-section-info h2 a:hover {
-    color: var(--accent);
-}
-
-.preset-meta-inline {
-    display: flex;
-    gap: 1rem;
+.preset-recipe-count {
     font-size: 0.8125rem;
     color: var(--text-secondary);
 }
 
-.preset-section-actions {
-    display: flex;
-    gap: 0.5rem;
+.preset-section-header .btn {
+    align-self: center;
 }
 
 .preset-more {
@@ -1046,15 +1041,10 @@ a.item-name:hover {
     margin-bottom: 0.75rem;
 }
 
-.preset-meta {
+.preset-recipe-count {
     display: flex;
     gap: 1rem;
-    margin-bottom: 1rem;
     font-size: 0.875rem;
-}
-
-.import-count {
-    color: var(--text-secondary);
 }
 
 .already-imported {
@@ -1071,6 +1061,66 @@ a.item-name:hover {
 
 .preset-header-section {
     margin-bottom: 1.5rem;
+}
+
+/* Preset recipes wrapper with collapse functionality */
+.preset-recipes-wrapper {
+    position: relative;
+}
+
+.preset-recipes-container {
+    position: relative;
+}
+
+.preset-recipes-wrapper.collapsed .preset-recipes-container {
+    max-height: 250px;
+    overflow: hidden;
+}
+
+.preset-recipes-wrapper.collapsed .preset-recipes-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1px;
+    right: 1px;
+    height: 30px;
+    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
+    pointer-events: none;
+}
+
+.preset-expand-btn {
+    display: block;
+    width: 100%;
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-top: 0;
+    border-radius: 0 0 8px 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.preset-expand-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.preset-recipes-wrapper .recipes-grid {
+    border-radius: 8px 8px 0 0;
+}
+
+.preset-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.25rem;
+    padding: 0 0.25rem;
+}
+
+.preset-imports {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1;
 }
 
 /* Import Page */
@@ -1302,7 +1352,8 @@ a.item-name:hover {
     .recipes-grid .pair-summary {
         grid-column: 1 / -1;
         display: flex !important;
-        gap: 0.5rem 1.5rem;
+        gap: 0.25rem 1.5rem;
+        flex-flow: row wrap;
         justify-content: flex-start;
         border-top: 1px solid var(--border);
         margin-top: 0.25rem;
