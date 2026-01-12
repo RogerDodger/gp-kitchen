@@ -54,8 +54,9 @@ Guest accounts are NOT created on page visit - only when user modifies their das
 - `GET /logout` - Clear session
 
 **Dashboard (/):**
-- `GET /` - View user's dashboard
-- `POST /recipes` - Create recipe
+- `GET /` - View your dashboard
+- `GET /recipes` - Edit your dashboard, same as current `/admin` but for this user's dashboard
+- `POST /recipes` - Create recipe for your dashboard
 - `GET /recipes/:id/edit` - Edit form
 - `POST /recipes/:id/toggle` - Toggle active
 - `POST /recipes/:id/toggle-live` - Toggle live
@@ -67,33 +68,33 @@ Guest accounts are NOT created on page visit - only when user modifies their das
 - `POST /recipes/:id/outputs/:output_id/delete` - Remove output
 
 **Presets (/presets):**
-- `GET /presets` - Browse all (ranked by import count)
+- `GET /presets` - Browse all (ranked by import count), same layout as `/presets/:id` but truncated to only first three recipes, and with a header for the preset's metadata (name, import count, )
 - `GET /presets/:id` - View preset (same layout as dashboard - prices, profits, etc.)
-- `GET /presets/:id/import` - Import selection (simple list with inputs/outputs + checkboxes, all checked by default)
+- `GET /presets/:id/import` - Import selection (same layout as `/manage` but just with checkboxes, inputs, and outputs, all checked by default)
 - `POST /presets/:id/import` - Import selected recipes (recipe_ids[])
 
-**Admin (/admin):**
-- `GET /admin` - Admin overview
-- `POST /admin/cleanup-guests` - Run guest cleanup
-
-**Admin Presets (/admin/presets):**
-- `GET /admin/presets` - List presets
-- `POST /admin/presets` - Create preset
-- `GET /admin/presets/:id/edit` - Edit preset
-- `POST /admin/presets/:id/delete` - Delete preset
-- `POST /admin/presets/:id/recipes` - Add recipe to preset
-- `GET /admin/presets/:id/recipes/:recipe_id/edit` - Edit preset recipe (shared input/output template)
-- `POST /admin/presets/:id/recipes/:recipe_id/delete` - Delete recipe from preset
-- Input/output routes mirror user recipe routes, share templates
+**Presets editing (admin only):**
+- `GET /presets/:id/recipes` - Edit preset, same view as `/recipes`, general entry point to routes below
+- `POST /presets` - New preset
+- `POST /presets/:id/edit` - Edit preset - current only needed to rename it
+- `POST /presets/:id/delete` - Delete preset
+- `POST /presets/:id/recipes` - Add recipe to preset
+- `POST /presets/:id/recipes/:id/delete` - Delete
+- `POST /presets/:id/recipes/reorder` - Reorder
+- `POST /presets/:id/recipes/:id/inputs` - Add input
+- `POST /presets/:id/recipes/:id/inputs/:input_id/delete` - Remove input
+- `POST /presets/:id/recipes/:id/outputs` - Add output
+- `POST /presets/:id/recipes/:id/outputs/:output_id/delete` - Remove output
+- Input/output routes mirror user recipe routes, share templates, maybe share controllers as well if reasonable
 
 ## Navigation
 
 - Dashboard (/)
 - Presets (/presets)
-- Admin (/admin) - admin only
-- Update Prices - admin + dev mode only
-- Save Account (/register) - guests only
+- Update Prices - dev mode only
 - Login/Logout
+
+- Save Account (/register) - guests only, appears as banner above header, only visible if dashboard has a recipe in it
 
 ## Migration
 
