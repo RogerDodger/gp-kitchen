@@ -1,0 +1,63 @@
+% layout 'default';
+% title 'Edit Cookbooks';
+
+<div class="admin-dashboard">
+    <h1>Edit Cookbooks</h1>
+
+    % if (flash 'success') {
+        <div class="alert alert-success"><%= flash 'success' %></div>
+    % }
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    <a href="/cookbooks" class="btn btn-secondary">&larr; Back to Cookbooks</a>
+    <a href="/cookbooks/new" class="btn btn-primary">Create Cookbook</a>
+
+    % my $cookbooks = stash('cookbooks') // [];
+    % my $current_order = join(',', map { $_->{id} } @$cookbooks);
+
+    % if (@$cookbooks) {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Sort</th>
+                    <th>Name</th>
+                    <th>Recipes</th>
+                    <th>Imports</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                % for my $cookbook (@$cookbooks) {
+                    <tr id="cookbook-<%= $cookbook->{id} %>">
+                        <td class="sort-controls">
+                            <form method="post" action="/cookbooks/reorder" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                                <input type="hidden" name="order" value="<%= $current_order %>">
+                                <input type="hidden" name="id" value="<%= $cookbook->{id} %>">
+                                <input type="hidden" name="dir" value="up">
+                                <button type="submit" class="btn btn-small" title="Move up">&#9650;</button>
+                            </form>
+                            <form method="post" action="/cookbooks/reorder" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+                                <input type="hidden" name="order" value="<%= $current_order %>">
+                                <input type="hidden" name="id" value="<%= $cookbook->{id} %>">
+                                <input type="hidden" name="dir" value="down">
+                                <button type="submit" class="btn btn-small" title="Move down">&#9660;</button>
+                            </form>
+                        </td>
+                        <td><%= $cookbook->{name} %></td>
+                        <td><%= $cookbook->{total_recipes} // 0 %></td>
+                        <td><%= $cookbook->{import_count} %></td>
+                        <td>
+                            <a href="/cookbooks/<%= $cookbook->{id} %>/recipes" class="btn btn-small">Edit</a>
+                        </td>
+                    </tr>
+                % }
+            </tbody>
+        </table>
+    % } else {
+        <p class="empty-state">No cookbooks yet. Create one above!</p>
+    % }
+</div>

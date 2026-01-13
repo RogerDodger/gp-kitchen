@@ -21,7 +21,7 @@
                         <button type="submit" class="btn btn-small">Update Prices</button>
                     </form>
                 % }
-                <span class="nav-user"><%= current_user->{username} %></span>
+                <a href="/user/password" class="nav-user"><%= current_user->{username} %></a>
                 <a href="/logout">Logout</a>
             % } else {
                 <a href="/login">Login</a>

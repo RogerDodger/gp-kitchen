@@ -374,6 +374,41 @@ post '/register' => sub ($c) {
     $c->redirect_to('/cook');
 };
 
+get '/user/password' => sub ($c) {
+    my $user = $c->current_user;
+    return $c->redirect_to('/login') unless $user && !$user->{is_guest};
+    $c->render(template => 'user/password');
+};
+
+post '/user/password' => sub ($c) {
+    return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+    my $user = $c->current_user;
+    return $c->redirect_to('/login') unless $user && !$user->{is_guest};
+
+    my $current = $c->param('current_password') // '';
+    my $new_password = $c->param('new_password') // '';
+    my $confirm = $c->param('confirm_password') // '';
+
+    if (length($new_password) < 6) {
+        $c->flash(error => 'New password must be at least 6 characters');
+        return $c->redirect_to('/user/password');
+    }
+    if ($new_password ne $confirm) {
+        $c->flash(error => 'Passwords do not match');
+        return $c->redirect_to('/user/password');
+    }
+
+    my $result = $schema->update_password($user->{id}, $current, $new_password);
+    if ($result->{error}) {
+        $c->flash(error => $result->{error});
+        return $c->redirect_to('/user/password');
+    }
+
+    $c->flash(success => 'Password updated successfully');
+    $c->redirect_to('/user/password');
+};
+
 # =====================================
 # Recipe routes (authenticated)
 # =====================================
@@ -686,6 +721,28 @@ group {
         my $user = $c->current_user;
         my $id = $schema->create_cookbook($name, $user->{id});
         $c->redirect_to("/cookbooks/$id/recipes");
+    };
+
+    # Edit/reorder cookbooks list
+    get '/edit' => sub ($c) {
+        my $cookbooks = $schema->get_all_cookbooks;
+        $c->stash(cookbooks => $cookbooks);
+        $c->render(template => 'cookbooks/edit');
+    };
+
+    # Reorder cookbooks
+    post '/reorder' => sub ($c) {
+        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
+
+        my $order = $c->param('order') // '';
+        my $id = $c->param('id');
+        my $dir = $c->param('dir');
+
+        my @ids = split /,/, $order;
+        $schema->swap_cookbook_order(\@ids, $id, $dir);
+
+        $c->flash(restore_scroll => 1);
+        $c->redirect_to('/cookbooks/edit');
     };
 
     # Edit cookbook recipes

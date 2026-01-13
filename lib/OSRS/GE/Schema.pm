@@ -376,6 +376,28 @@ sub register_guest {
     return { success => 1 };
 }
 
+sub update_password {
+    my ($self, $user_id, $current_password, $new_password) = @_;
+    my $dbh = $self->dbh;
+
+    # Get user and verify current password
+    my $user = $self->get_user($user_id);
+    return { error => 'User not found' } unless $user;
+    return { error => 'Cannot change password for guest accounts' } if $user->{is_guest};
+
+    if (!bcrypt_check($current_password, $user->{password_hash})) {
+        return { error => 'Current password is incorrect' };
+    }
+
+    my $password_hash = bcrypt($new_password, '2b', 12, _random_salt());
+    $dbh->do(q{
+        UPDATE users SET password_hash = ?
+        WHERE id = ?
+    }, undef, $password_hash, $user_id);
+
+    return { success => 1 };
+}
+
 sub cleanup_inactive_guests {
     my ($self, $days) = @_;
     $days //= 30;
@@ -880,10 +902,13 @@ sub upsert_item_volumes {
 sub create_cookbook {
     my ($self, $name, $created_by) = @_;
     my $dbh = $self->dbh;
+    my ($max_order) = $dbh->selectrow_array(
+        'SELECT COALESCE(MAX(sort_order), -1) FROM cookbooks'
+    );
     $dbh->do(q{
-        INSERT INTO cookbooks (name, created_by, created_at, updated_at)
-        VALUES (?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
-    }, undef, $name, $created_by);
+        INSERT INTO cookbooks (name, sort_order, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+    }, undef, $name, $max_order + 1, $created_by);
     return $dbh->last_insert_id(undef, undef, 'cookbooks', 'id');
 }
 
@@ -922,6 +947,7 @@ sub get_all_cookbooks {
     my $sql = q{
         SELECT p.*,
                COALESCE(ic.import_count, 0) as import_count,
+               COALESCE(rc.recipe_count, 0) as total_recipes,
                u.username as created_by_username
         FROM cookbooks p
         LEFT JOIN (
@@ -929,11 +955,41 @@ sub get_all_cookbooks {
             FROM cookbook_imports
             GROUP BY cookbook_id
         ) ic ON p.id = ic.cookbook_id
+        LEFT JOIN (
+            SELECT cookbook_id, COUNT(*) as recipe_count
+            FROM cookbook_recipes
+            GROUP BY cookbook_id
+        ) rc ON p.id = rc.cookbook_id
         LEFT JOIN users u ON p.created_by = u.id
-        ORDER BY import_count DESC, p.created_at DESC
+        ORDER BY p.sort_order, p.id
         LIMIT ?
     };
     return $self->dbh->selectall_arrayref($sql, { Slice => {} }, $limit);
+}
+
+sub reorder_cookbooks {
+    my ($self, $ids) = @_;
+    my $order = 0;
+    for my $id (@$ids) {
+        $self->dbh->do("UPDATE cookbooks SET sort_order = ? WHERE id = ?",
+            undef, $order++, $id);
+    }
+}
+
+sub swap_cookbook_order {
+    my ($self, $ids, $id, $dir) = @_;
+
+    my ($idx) = grep { $ids->[$_] == $id } 0..$#$ids;
+    return unless defined $idx;
+
+    my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
+    return if $swap_idx < 0 || $swap_idx > $#$ids;
+
+    # Swap the two items
+    ($ids->[$idx], $ids->[$swap_idx]) = ($ids->[$swap_idx], $ids->[$idx]);
+
+    # Update all sort_order values
+    $self->reorder_cookbooks($ids);
 }
 
 # =====================================

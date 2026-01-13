@@ -70,6 +70,7 @@
     % if (is_admin) {
         <div class="admin-actions" style="margin-top: 2rem;">
             <a href="/cookbooks/new" class="btn btn-primary">Create Cookbook</a>
+            <a href="/cookbooks/edit" class="btn btn-secondary">Edit Cookbooks</a>
         </div>
     % }
 </div>
