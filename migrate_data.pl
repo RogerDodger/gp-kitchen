@@ -73,8 +73,8 @@ if ($recipe_count > 0) {
     print "Migrated " . scalar(@$conversions) . " recipes.\n\n";
 }
 
-# Define preset categories based on output item names
-my %preset_categories = (
+# Define cookbook categories based on output item names
+my %cookbook_categories = (
     'Potion Decanting' => [
         'Divine ranging potion(4)',
         'Ranging potion(4)',
@@ -101,20 +101,20 @@ my %preset_categories = (
 
 # Build reverse lookup: output name -> category
 my %output_to_category;
-for my $cat (keys %preset_categories) {
-    for my $output (@{$preset_categories{$cat}}) {
+for my $cat (keys %cookbook_categories) {
+    for my $output (@{$cookbook_categories{$cat}}) {
         $output_to_category{$output} = $cat;
     }
 }
 
-# Check if presets already exist
-my ($preset_count) = $dbh->selectrow_array('SELECT COUNT(*) FROM presets');
-if ($preset_count > 0) {
-    print "Presets already exist ($preset_count). Skipping preset creation.\n";
+# Check if cookbooks already exist
+my ($cookbook_count) = $dbh->selectrow_array('SELECT COUNT(*) FROM cookbooks');
+if ($cookbook_count > 0) {
+    print "Cookbooks already exist ($cookbook_count). Skipping cookbook creation.\n";
     exit 0;
 }
 
-print "Creating presets...\n\n";
+print "Creating cookbooks...\n\n";
 
 # Get all recipes with their output names
 my $recipes = $dbh->selectall_arrayref(q{
@@ -142,56 +142,56 @@ for my $recipe (@$recipes) {
     }
 }
 
-# Create presets in order
-my @preset_order = ('Potion Decanting', 'Armour Sets', 'Tree Saplings');
+# Create cookbooks in order
+my @cookbook_order = ('Potion Decanting', 'Armour Sets', 'Tree Saplings');
 
-for my $preset_name (@preset_order) {
-    my $recipes_in_preset = $categorized{$preset_name} // [];
-    next unless @$recipes_in_preset;
+for my $cookbook_name (@cookbook_order) {
+    my $recipes_in_cookbook = $categorized{$cookbook_name} // [];
+    next unless @$recipes_in_cookbook;
 
-    create_preset($preset_name, $recipes_in_preset);
+    create_cookbook($cookbook_name, $recipes_in_cookbook);
 }
 
-# Create Misc preset for remaining recipes
+# Create Misc cookbook for remaining recipes
 if (@misc) {
-    create_preset('Misc', \@misc);
+    create_cookbook('Misc', \@misc);
 }
 
 print "\nDone!\n";
 
-sub create_preset {
+sub create_cookbook {
     my ($name, $recipe_list) = @_;
 
-    print "Creating preset: $name (" . scalar(@$recipe_list) . " recipes)\n";
+    print "Creating cookbook: $name (" . scalar(@$recipe_list) . " recipes)\n";
 
-    # Create preset
+    # Create cookbook
     $dbh->do(q{
-        INSERT INTO presets (name, description, created_by, created_at, updated_at)
+        INSERT INTO cookbooks (name, description, created_by, created_at, updated_at)
         VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
     }, undef, $name, '', $admin_id);
 
-    my $preset_id = $dbh->last_insert_id(undef, undef, 'presets', 'id');
+    my $cookbook_id = $dbh->last_insert_id(undef, undef, 'cookbooks', 'id');
 
     my $sort_order = 0;
     for my $recipe (@$recipe_list) {
-        # Create preset recipe
+        # Create cookbook recipe
         $dbh->do(q{
-            INSERT INTO preset_recipes (preset_id, sort_order)
+            INSERT INTO cookbook_recipes (cookbook_id, sort_order)
             VALUES (?, ?)
-        }, undef, $preset_id, $sort_order++);
+        }, undef, $cookbook_id, $sort_order++);
 
-        my $preset_recipe_id = $dbh->last_insert_id(undef, undef, 'preset_recipes', 'id');
+        my $cookbook_recipe_id = $dbh->last_insert_id(undef, undef, 'cookbook_recipes', 'id');
 
-        # Copy inputs from user recipe to preset recipe
+        # Copy inputs from user recipe to cookbook recipe
         my $inputs = $dbh->selectall_arrayref(
             'SELECT item_id, quantity FROM recipe_inputs WHERE recipe_id = ?',
             { Slice => {} }, $recipe->{id}
         );
         for my $input (@$inputs) {
             $dbh->do(q{
-                INSERT INTO preset_recipe_inputs (recipe_id, item_id, quantity)
+                INSERT INTO cookbook_recipe_inputs (recipe_id, item_id, quantity)
                 VALUES (?, ?, ?)
-            }, undef, $preset_recipe_id, $input->{item_id}, $input->{quantity});
+            }, undef, $cookbook_recipe_id, $input->{item_id}, $input->{quantity});
         }
 
         # Copy outputs
@@ -201,11 +201,11 @@ sub create_preset {
         );
         for my $output (@$outputs) {
             $dbh->do(q{
-                INSERT INTO preset_recipe_outputs (recipe_id, item_id, quantity)
+                INSERT INTO cookbook_recipe_outputs (recipe_id, item_id, quantity)
                 VALUES (?, ?, ?)
-            }, undef, $preset_recipe_id, $output->{item_id}, $output->{quantity});
+            }, undef, $cookbook_recipe_id, $output->{item_id}, $output->{quantity});
         }
 
-        print "  Added recipe $recipe->{id} as preset_recipe $preset_recipe_id\n";
+        print "  Added recipe $recipe->{id} as cookbook_recipe $cookbook_recipe_id\n";
     }
 }

@@ -580,43 +580,43 @@ group {
 };
 
 # =====================================
-# Preset routes (public browsing)
+# Cookbook routes (public browsing)
 # =====================================
 
-# Browse all presets
-get '/presets' => sub ($c) {
-    my $presets = $schema->get_all_presets;
+# Browse all cookbooks
+get '/cookbooks' => sub ($c) {
+    my $cookbooks = $schema->get_all_cookbooks;
 
-    # Get all recipes for each preset
-    for my $preset (@$presets) {
-        my $recipes = $schema->get_preset_recipes($preset->{id});
-        $preset->{recipes} = $recipes;
-        $preset->{total_recipes} = scalar @$recipes;
+    # Get all recipes for each cookbook
+    for my $cookbook (@$cookbooks) {
+        my $recipes = $schema->get_cookbook_recipes($cookbook->{id});
+        $cookbook->{recipes} = $recipes;
+        $cookbook->{total_recipes} = scalar @$recipes;
     }
 
     my $stats = $schema->get_price_stats;
-    $c->stash(presets => $presets, stats => $stats);
-    $c->render(template => 'presets/index');
+    $c->stash(cookbooks => $cookbooks, stats => $stats);
+    $c->render(template => 'cookbooks/index');
 };
 
 # Import selection page
-get '/presets/:id/import' => sub ($c) {
+get '/cookbooks/:id/import' => sub ($c) {
     my $id = $c->param('id');
-    my $preset = $schema->get_preset($id);
-    return $c->render(text => 'Preset not found', status => 404) unless $preset;
+    my $cookbook = $schema->get_cookbook($id);
+    return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
 
-    my $recipes = $schema->get_preset_recipes($id);
-    $c->stash(preset => $preset, recipes => $recipes);
-    $c->render(template => 'presets/import');
+    my $recipes = $schema->get_cookbook_recipes($id);
+    $c->stash(cookbook => $cookbook, recipes => $recipes);
+    $c->render(template => 'cookbooks/import');
 };
 
 # Process import
-post '/presets/:id/import' => sub ($c) {
+post '/cookbooks/:id/import' => sub ($c) {
     return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-    my $preset_id = $c->param('id');
-    my $preset = $schema->get_preset($preset_id);
-    return $c->render(text => 'Preset not found', status => 404) unless $preset;
+    my $cookbook_id = $c->param('id');
+    my $cookbook = $schema->get_cookbook($cookbook_id);
+    return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
 
     # Ensure user exists (create guest if needed)
     my $user = $c->current_user;
@@ -632,25 +632,25 @@ post '/presets/:id/import' => sub ($c) {
 
     if (@recipe_ids) {
         eval {
-            $schema->import_preset($preset_id, $user->{id}, \@recipe_ids);
+            $schema->import_cookbook($cookbook_id, $user->{id}, \@recipe_ids);
         };
         if ($@) {
             $c->flash(error => "Import failed: $@");
-            return $c->redirect_to("/presets/$preset_id/import");
+            return $c->redirect_to("/cookbooks/$cookbook_id/import");
         }
         my $count = @recipe_ids;
-        $c->flash(success => "Imported $count recipe(s) from " . $preset->{name});
+        $c->flash(success => "Imported $count recipe(s) from " . $cookbook->{name});
     }
 
     $c->redirect_to('/cook');
 };
 
 # =====================================
-# Preset admin routes (admin only)
+# Cookbook admin routes (admin only)
 # =====================================
 
 group {
-    under '/presets' => sub ($c) {
+    under '/cookbooks' => sub ($c) {
         # Only check admin for POST requests and /new route
         return 1 unless $c->req->method eq 'POST' || $c->req->url->path =~ m{/(new|edit|\d+/recipes)};
         return 1 if $c->is_admin;
@@ -658,12 +658,12 @@ group {
         return 0;
     };
 
-    # New preset form
+    # New cookbook form
     get '/new' => sub ($c) {
-        $c->render(template => 'presets/new');
+        $c->render(template => 'cookbooks/new');
     };
 
-    # Create preset
+    # Create cookbook
     post '/new' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
@@ -672,180 +672,180 @@ group {
 
         if (length($name) < 1) {
             $c->flash(error => 'Name is required');
-            return $c->redirect_to('/presets/new');
+            return $c->redirect_to('/cookbooks/new');
         }
 
         my $user = $c->current_user;
-        my $id = $schema->create_preset($name, $description, $user->{id});
-        $c->redirect_to("/presets/$id/recipes");
+        my $id = $schema->create_cookbook($name, $description, $user->{id});
+        $c->redirect_to("/cookbooks/$id/recipes");
     };
 
-    # Edit preset recipes
-    get '/:preset_id/recipes' => sub ($c) {
-        my $preset_id = $c->param('preset_id');
-        my $preset = $schema->get_preset($preset_id);
-        return $c->render(text => 'Preset not found', status => 404) unless $preset;
+    # Edit cookbook recipes
+    get '/:cookbook_id/recipes' => sub ($c) {
+        my $cookbook_id = $c->param('cookbook_id');
+        my $cookbook = $schema->get_cookbook($cookbook_id);
+        return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
 
-        my $recipes = $schema->get_preset_recipes($preset_id);
+        my $recipes = $schema->get_cookbook_recipes($cookbook_id);
         my $stats = $schema->get_price_stats;
-        $c->stash(preset => $preset, recipes => $recipes, stats => $stats);
-        $c->render(template => 'presets/recipes');
+        $c->stash(cookbook => $cookbook, recipes => $recipes, stats => $stats);
+        $c->render(template => 'cookbooks/recipes');
     };
 
-    # Update preset metadata
-    post '/:preset_id/edit' => sub ($c) {
+    # Update cookbook metadata
+    post '/:cookbook_id/edit' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $name = $c->param('name') // '';
         my $description = $c->param('description') // '';
 
-        $schema->update_preset($preset_id, $name, $description);
-        $c->flash(success => 'Preset updated');
-        $c->redirect_to("/presets/$preset_id/recipes");
+        $schema->update_cookbook($cookbook_id, $name, $description);
+        $c->flash(success => 'Cookbook updated');
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes");
     };
 
-    # Delete preset
-    post '/:preset_id/delete' => sub ($c) {
+    # Delete cookbook
+    post '/:cookbook_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
-        $schema->delete_preset($preset_id);
-        $c->flash(success => 'Preset deleted');
-        $c->redirect_to('/presets');
+        my $cookbook_id = $c->param('cookbook_id');
+        $schema->delete_cookbook($cookbook_id);
+        $c->flash(success => 'Cookbook deleted');
+        $c->redirect_to('/cookbooks');
     };
 
-    # Add recipe to preset
-    post '/:preset_id/recipes' => sub ($c) {
+    # Add recipe to cookbook
+    post '/:cookbook_id/recipes' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
-        my $id = $schema->create_preset_recipe($preset_id);
-        $c->redirect_to("/presets/$preset_id/recipes/$id/edit");
+        my $cookbook_id = $c->param('cookbook_id');
+        my $id = $schema->create_cookbook_recipe($cookbook_id);
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$id/edit");
     };
 
-    # Edit preset recipe
-    get '/:preset_id/recipes/:recipe_id/edit' => sub ($c) {
-        my $preset_id = $c->param('preset_id');
+    # Edit cookbook recipe
+    get '/:cookbook_id/recipes/:recipe_id/edit' => sub ($c) {
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
-        my $preset = $schema->get_preset($preset_id);
-        return $c->render(text => 'Preset not found', status => 404) unless $preset;
+        my $cookbook = $schema->get_cookbook($cookbook_id);
+        return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
-        my $recipe = $schema->get_preset_recipe($recipe_id);
+        my $recipe = $schema->get_cookbook_recipe($recipe_id);
         return $c->render(text => 'Recipe not found', status => 404) unless $recipe;
 
-        $c->stash(preset => $preset, recipe => $recipe);
-        $c->render(template => 'presets/edit_recipe');
+        $c->stash(cookbook => $cookbook, recipe => $recipe);
+        $c->render(template => 'cookbooks/edit_recipe');
     };
 
-    # Delete preset recipe
-    post '/:preset_id/recipes/:recipe_id/delete' => sub ($c) {
+    # Delete cookbook recipe
+    post '/:cookbook_id/recipes/:recipe_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
-        $schema->delete_preset_recipe($recipe_id);
+        $schema->delete_cookbook_recipe($recipe_id);
         $c->flash(success => 'Recipe deleted');
-        $c->redirect_to("/presets/$preset_id/recipes");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes");
     };
 
-    # Add input to preset recipe
-    post '/:preset_id/recipes/:recipe_id/inputs' => sub ($c) {
+    # Add input to cookbook recipe
+    post '/:cookbook_id/recipes/:recipe_id/inputs' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
         my $item_id = $c->param('item_id');
         my $quantity = $c->param('quantity') // 1;
 
         if ($item_id) {
-            $schema->add_preset_recipe_input($recipe_id, $item_id, $quantity);
+            $schema->add_cookbook_recipe_input($recipe_id, $item_id, $quantity);
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
     };
 
-    # Remove input from preset recipe
-    post '/:preset_id/recipes/:recipe_id/inputs/:input_id/delete' => sub ($c) {
+    # Remove input from cookbook recipe
+    post '/:cookbook_id/recipes/:recipe_id/inputs/:input_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
         my $input_id = $c->param('input_id');
-        $schema->remove_preset_recipe_input($input_id);
+        $schema->remove_cookbook_recipe_input($input_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
     };
 
-    # Add output to preset recipe
-    post '/:preset_id/recipes/:recipe_id/outputs' => sub ($c) {
+    # Add output to cookbook recipe
+    post '/:cookbook_id/recipes/:recipe_id/outputs' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
         my $item_id = $c->param('item_id');
         my $quantity = $c->param('quantity') // 1;
 
         if ($item_id) {
-            $schema->add_preset_recipe_output($recipe_id, $item_id, $quantity);
+            $schema->add_cookbook_recipe_output($recipe_id, $item_id, $quantity);
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
     };
 
-    # Remove output from preset recipe
-    post '/:preset_id/recipes/:recipe_id/outputs/:output_id/delete' => sub ($c) {
+    # Remove output from cookbook recipe
+    post '/:cookbook_id/recipes/:recipe_id/outputs/:output_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+            unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
 
         my $output_id = $c->param('output_id');
-        $schema->remove_preset_recipe_output($output_id);
+        $schema->remove_cookbook_recipe_output($output_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/presets/$preset_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
     };
 
-    # Reorder preset recipes
-    post '/:preset_id/recipes/reorder' => sub ($c) {
+    # Reorder cookbook recipes
+    post '/:cookbook_id/recipes/reorder' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
-        my $preset_id = $c->param('preset_id');
+        my $cookbook_id = $c->param('cookbook_id');
         my $order = $c->param('order') // '';
         my $id = $c->param('id');
         my $dir = $c->param('dir');
 
         my @ids = grep { /^\d+$/ } split /,/, $order;
         if (@ids && $id && $dir =~ /^(up|down)$/) {
-            # Verify all recipes belong to preset
+            # Verify all recipes belong to cookbook
             for my $recipe_id (@ids) {
                 return $c->render(text => 'Not authorized', status => 403)
-                    unless $schema->preset_owns_recipe($preset_id, $recipe_id);
+                    unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
             }
 
             my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
@@ -853,12 +853,12 @@ group {
                 my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
                 if ($swap_idx >= 0 && $swap_idx <= $#ids) {
                     @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
-                    $schema->reorder_preset_recipes(\@ids);
+                    $schema->reorder_cookbook_recipes(\@ids);
                 }
             }
         }
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/presets/$preset_id/recipes");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes");
     };
 };
 

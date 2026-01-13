@@ -691,61 +691,61 @@ sub upsert_item_volumes {
 }
 
 # =====================================
-# Preset methods
+# Cookbook methods
 # =====================================
 
-sub create_preset {
+sub create_cookbook {
     my ($self, $name, $description, $created_by) = @_;
     my $dbh = $self->dbh;
     $dbh->do(q{
-        INSERT INTO presets (name, description, created_by, created_at, updated_at)
+        INSERT INTO cookbooks (name, description, created_by, created_at, updated_at)
         VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
     }, undef, $name, $description, $created_by);
-    return $dbh->last_insert_id(undef, undef, 'presets', 'id');
+    return $dbh->last_insert_id(undef, undef, 'cookbooks', 'id');
 }
 
-sub update_preset {
+sub update_cookbook {
     my ($self, $id, $name, $description) = @_;
     $self->dbh->do(q{
-        UPDATE presets SET name = ?, description = ?, updated_at = strftime('%s', 'now')
+        UPDATE cookbooks SET name = ?, description = ?, updated_at = strftime('%s', 'now')
         WHERE id = ?
     }, undef, $name, $description, $id);
 }
 
-sub delete_preset {
+sub delete_cookbook {
     my ($self, $id) = @_;
-    $self->dbh->do('DELETE FROM presets WHERE id = ?', undef, $id);
+    $self->dbh->do('DELETE FROM cookbooks WHERE id = ?', undef, $id);
 }
 
-sub get_preset {
+sub get_cookbook {
     my ($self, $id) = @_;
-    my $preset = $self->dbh->selectrow_hashref(
-        'SELECT * FROM presets WHERE id = ?', undef, $id
+    my $cookbook = $self->dbh->selectrow_hashref(
+        'SELECT * FROM cookbooks WHERE id = ?', undef, $id
     );
-    return unless $preset;
+    return unless $cookbook;
 
     # Get import count
     my ($import_count) = $self->dbh->selectrow_array(
-        'SELECT COUNT(*) FROM preset_imports WHERE preset_id = ?', undef, $id
+        'SELECT COUNT(*) FROM cookbook_imports WHERE cookbook_id = ?', undef, $id
     );
-    $preset->{import_count} = $import_count // 0;
+    $cookbook->{import_count} = $import_count // 0;
 
-    return $preset;
+    return $cookbook;
 }
 
-sub get_all_presets {
+sub get_all_cookbooks {
     my ($self, $limit) = @_;
     $limit //= 50;
     my $sql = q{
         SELECT p.*,
                COALESCE(ic.import_count, 0) as import_count,
                u.username as created_by_username
-        FROM presets p
+        FROM cookbooks p
         LEFT JOIN (
-            SELECT preset_id, COUNT(*) as import_count
-            FROM preset_imports
-            GROUP BY preset_id
-        ) ic ON p.id = ic.preset_id
+            SELECT cookbook_id, COUNT(*) as import_count
+            FROM cookbook_imports
+            GROUP BY cookbook_id
+        ) ic ON p.id = ic.cookbook_id
         LEFT JOIN users u ON p.created_by = u.id
         ORDER BY import_count DESC, p.created_at DESC
         LIMIT ?
@@ -754,39 +754,39 @@ sub get_all_presets {
 }
 
 # =====================================
-# Preset recipe methods
+# Cookbook recipe methods
 # =====================================
 
-sub create_preset_recipe {
-    my ($self, $preset_id) = @_;
+sub create_cookbook_recipe {
+    my ($self, $cookbook_id) = @_;
     my $dbh = $self->dbh;
     my ($max_order) = $dbh->selectrow_array(
-        'SELECT COALESCE(MAX(sort_order), -1) FROM preset_recipes WHERE preset_id = ?',
-        undef, $preset_id
+        'SELECT COALESCE(MAX(sort_order), -1) FROM cookbook_recipes WHERE cookbook_id = ?',
+        undef, $cookbook_id
     );
     $dbh->do(q{
-        INSERT INTO preset_recipes (preset_id, sort_order)
+        INSERT INTO cookbook_recipes (cookbook_id, sort_order)
         VALUES (?, ?)
-    }, undef, $preset_id, $max_order + 1);
-    return $dbh->last_insert_id(undef, undef, 'preset_recipes', 'id');
+    }, undef, $cookbook_id, $max_order + 1);
+    return $dbh->last_insert_id(undef, undef, 'cookbook_recipes', 'id');
 }
 
-sub delete_preset_recipe {
+sub delete_cookbook_recipe {
     my ($self, $id) = @_;
-    $self->dbh->do('DELETE FROM preset_recipes WHERE id = ?', undef, $id);
+    $self->dbh->do('DELETE FROM cookbook_recipes WHERE id = ?', undef, $id);
 }
 
-sub get_preset_recipe {
+sub get_cookbook_recipe {
     my ($self, $id) = @_;
     my $recipe = $self->dbh->selectrow_hashref(
-        'SELECT * FROM preset_recipes WHERE id = ?', undef, $id
+        'SELECT * FROM cookbook_recipes WHERE id = ?', undef, $id
     );
     return unless $recipe;
 
     # Get inputs
     $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
         SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM preset_recipe_inputs pri
+        FROM cookbook_recipe_inputs pri
         JOIN items i ON pri.item_id = i.id
         LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
         WHERE pri.recipe_id = ?
@@ -795,7 +795,7 @@ sub get_preset_recipe {
     # Get outputs
     $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
         SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM preset_recipe_outputs pro
+        FROM cookbook_recipe_outputs pro
         JOIN items i ON pro.item_id = i.id
         LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
         WHERE pro.recipe_id = ?
@@ -804,8 +804,8 @@ sub get_preset_recipe {
     return $recipe;
 }
 
-sub get_preset_recipes {
-    my ($self, $preset_id) = @_;
+sub get_cookbook_recipes {
+    my ($self, $cookbook_id) = @_;
     my $sql = q{
         SELECT pr.*,
                COALESCE(profit_data.input_cost, 0) as input_cost,
@@ -814,13 +814,13 @@ sub get_preset_recipes {
                COALESCE(profit_data.output_revenue_after_tax, 0) as output_revenue_after_tax,
                COALESCE(profit_data.profit, 0) as profit,
                COALESCE(profit_data.roi_percent, 0) as roi_percent
-        FROM preset_recipes pr
-        LEFT JOIN preset_recipe_profits profit_data ON pr.id = profit_data.id
-        WHERE pr.preset_id = ?
+        FROM cookbook_recipes pr
+        LEFT JOIN cookbook_recipe_profits profit_data ON pr.id = profit_data.id
+        WHERE pr.cookbook_id = ?
         ORDER BY pr.sort_order, pr.id
     };
 
-    my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $preset_id);
+    my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $cookbook_id);
 
     # Fetch inputs and outputs for each recipe
     for my $recipe (@$recipes) {
@@ -828,7 +828,7 @@ sub get_preset_recipes {
             SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
                    iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
                    iv.vol_24h_high, iv.vol_24h_low
-            FROM preset_recipe_inputs pri
+            FROM cookbook_recipe_inputs pri
             JOIN items i ON pri.item_id = i.id
             LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
             LEFT JOIN item_volumes iv ON pri.item_id = iv.item_id
@@ -839,7 +839,7 @@ sub get_preset_recipes {
             SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
                    iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
                    iv.vol_24h_high, iv.vol_24h_low
-            FROM preset_recipe_outputs pro
+            FROM cookbook_recipe_outputs pro
             JOIN items i ON pro.item_id = i.id
             LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
             LEFT JOIN item_volumes iv ON pro.item_id = iv.item_id
@@ -850,71 +850,71 @@ sub get_preset_recipes {
     return $recipes;
 }
 
-sub reorder_preset_recipes {
+sub reorder_cookbook_recipes {
     my ($self, $ids) = @_;
     my $order = 0;
     for my $id (@$ids) {
-        $self->dbh->do('UPDATE preset_recipes SET sort_order = ? WHERE id = ?',
+        $self->dbh->do('UPDATE cookbook_recipes SET sort_order = ? WHERE id = ?',
             undef, $order++, $id);
     }
 }
 
-# Preset recipe input/output management
-sub add_preset_recipe_input {
+# Cookbook recipe input/output management
+sub add_cookbook_recipe_input {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
     $quantity //= 1;
     $self->dbh->do(q{
-        INSERT INTO preset_recipe_inputs (recipe_id, item_id, quantity)
+        INSERT INTO cookbook_recipe_inputs (recipe_id, item_id, quantity)
         VALUES (?, ?, ?)
     }, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'preset_recipe_inputs', 'id');
+    return $self->dbh->last_insert_id(undef, undef, 'cookbook_recipe_inputs', 'id');
 }
 
-sub add_preset_recipe_output {
+sub add_cookbook_recipe_output {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
     $quantity //= 1;
     $self->dbh->do(q{
-        INSERT INTO preset_recipe_outputs (recipe_id, item_id, quantity)
+        INSERT INTO cookbook_recipe_outputs (recipe_id, item_id, quantity)
         VALUES (?, ?, ?)
     }, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'preset_recipe_outputs', 'id');
+    return $self->dbh->last_insert_id(undef, undef, 'cookbook_recipe_outputs', 'id');
 }
 
-sub remove_preset_recipe_input {
+sub remove_cookbook_recipe_input {
     my ($self, $input_id) = @_;
-    $self->dbh->do('DELETE FROM preset_recipe_inputs WHERE id = ?', undef, $input_id);
+    $self->dbh->do('DELETE FROM cookbook_recipe_inputs WHERE id = ?', undef, $input_id);
 }
 
-sub remove_preset_recipe_output {
+sub remove_cookbook_recipe_output {
     my ($self, $output_id) = @_;
-    $self->dbh->do('DELETE FROM preset_recipe_outputs WHERE id = ?', undef, $output_id);
+    $self->dbh->do('DELETE FROM cookbook_recipe_outputs WHERE id = ?', undef, $output_id);
 }
 
-# Check if recipe belongs to preset
-sub preset_owns_recipe {
-    my ($self, $preset_id, $recipe_id) = @_;
+# Check if recipe belongs to cookbook
+sub cookbook_owns_recipe {
+    my ($self, $cookbook_id, $recipe_id) = @_;
     my ($count) = $self->dbh->selectrow_array(
-        'SELECT 1 FROM preset_recipes WHERE id = ? AND preset_id = ?',
-        undef, $recipe_id, $preset_id
+        'SELECT 1 FROM cookbook_recipes WHERE id = ? AND cookbook_id = ?',
+        undef, $recipe_id, $cookbook_id
     );
     return $count;
 }
 
 # =====================================
-# Preset import
+# Cookbook import
 # =====================================
 
-sub import_preset {
-    my ($self, $preset_id, $user_id, $recipe_ids) = @_;
+sub import_cookbook {
+    my ($self, $cookbook_id, $user_id, $recipe_ids) = @_;
     my $dbh = $self->dbh;
 
     $dbh->begin_work;
     eval {
         # Record the import (or ignore if already imported)
         $dbh->do(q{
-            INSERT OR IGNORE INTO preset_imports (preset_id, user_id, imported_at)
+            INSERT OR IGNORE INTO cookbook_imports (cookbook_id, user_id, imported_at)
             VALUES (?, ?, strftime('%s', 'now'))
-        }, undef, $preset_id, $user_id);
+        }, undef, $cookbook_id, $user_id);
 
         # Get max sort order for user's recipes
         my ($max_order) = $dbh->selectrow_array(
@@ -923,9 +923,9 @@ sub import_preset {
         );
 
         # Import selected recipes
-        for my $preset_recipe_id (@$recipe_ids) {
-            # Verify recipe belongs to preset
-            next unless $self->preset_owns_recipe($preset_id, $preset_recipe_id);
+        for my $cookbook_recipe_id (@$recipe_ids) {
+            # Verify recipe belongs to cookbook
+            next unless $self->cookbook_owns_recipe($cookbook_id, $cookbook_recipe_id);
 
             $max_order++;
 
@@ -938,8 +938,8 @@ sub import_preset {
 
             # Copy inputs
             my $inputs = $dbh->selectall_arrayref(
-                'SELECT item_id, quantity FROM preset_recipe_inputs WHERE recipe_id = ?',
-                { Slice => {} }, $preset_recipe_id
+                'SELECT item_id, quantity FROM cookbook_recipe_inputs WHERE recipe_id = ?',
+                { Slice => {} }, $cookbook_recipe_id
             );
             for my $input (@$inputs) {
                 $dbh->do(q{
@@ -950,8 +950,8 @@ sub import_preset {
 
             # Copy outputs
             my $outputs = $dbh->selectall_arrayref(
-                'SELECT item_id, quantity FROM preset_recipe_outputs WHERE recipe_id = ?',
-                { Slice => {} }, $preset_recipe_id
+                'SELECT item_id, quantity FROM cookbook_recipe_outputs WHERE recipe_id = ?',
+                { Slice => {} }, $cookbook_recipe_id
             );
             for my $output (@$outputs) {
                 $dbh->do(q{

@@ -1,16 +1,16 @@
 % layout 'default';
-% title 'Create Preset';
+% title 'Create Cookbook';
 
-<div class="create-preset">
-    <h1>Create New Preset</h1>
+<div class="create-cookbook">
+    <h1>Create New Cookbook</h1>
 
     % if (flash 'error') {
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
+    <a href="/cookbooks" class="btn btn-secondary">&larr; Back to Cookbooks</a>
 
-    <form method="post" action="/presets/new" class="preset-form">
+    <form method="post" action="/cookbooks/new" class="cookbook-form">
         <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
 
         <div class="form-group">
@@ -23,6 +23,6 @@
             <textarea id="description" name="description" rows="3" maxlength="500"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">Create Preset</button>
+        <button type="submit" class="btn btn-primary">Create Cookbook</button>
     </form>
 </div>

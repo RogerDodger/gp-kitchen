@@ -65,8 +65,8 @@ CREATE TABLE IF NOT EXISTS recipe_outputs (
     quantity INTEGER NOT NULL DEFAULT 1
 );
 
--- Presets: admin-curated recipe collections
-CREATE TABLE IF NOT EXISTS presets (
+-- Cookbooks: admin-curated recipe collections
+CREATE TABLE IF NOT EXISTS cookbooks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT,
@@ -75,36 +75,36 @@ CREATE TABLE IF NOT EXISTS presets (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
--- Preset recipes
-CREATE TABLE IF NOT EXISTS preset_recipes (
+-- Cookbook recipes
+CREATE TABLE IF NOT EXISTS cookbook_recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    preset_id INTEGER NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+    cookbook_id INTEGER NOT NULL REFERENCES cookbooks(id) ON DELETE CASCADE,
     sort_order INTEGER DEFAULT 0
 );
 
--- Preset recipe inputs
-CREATE TABLE IF NOT EXISTS preset_recipe_inputs (
+-- Cookbook recipe inputs
+CREATE TABLE IF NOT EXISTS cookbook_recipe_inputs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER NOT NULL REFERENCES preset_recipes(id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES cookbook_recipes(id) ON DELETE CASCADE,
     item_id INTEGER NOT NULL REFERENCES items(id),
     quantity INTEGER NOT NULL DEFAULT 1
 );
 
--- Preset recipe outputs
-CREATE TABLE IF NOT EXISTS preset_recipe_outputs (
+-- Cookbook recipe outputs
+CREATE TABLE IF NOT EXISTS cookbook_recipe_outputs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER NOT NULL REFERENCES preset_recipes(id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES cookbook_recipes(id) ON DELETE CASCADE,
     item_id INTEGER NOT NULL REFERENCES items(id),
     quantity INTEGER NOT NULL DEFAULT 1
 );
 
--- Preset imports: tracks which users imported which presets
-CREATE TABLE IF NOT EXISTS preset_imports (
+-- Cookbook imports: tracks which users imported which cookbooks
+CREATE TABLE IF NOT EXISTS cookbook_imports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    preset_id INTEGER NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+    cookbook_id INTEGER NOT NULL REFERENCES cookbooks(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     imported_at INTEGER DEFAULT (strftime('%s', 'now')),
-    UNIQUE(preset_id, user_id)
+    UNIQUE(cookbook_id, user_id)
 );
 
 -- Aggregated volume data for items (from timeseries API)
@@ -130,8 +130,8 @@ CREATE INDEX IF NOT EXISTS idx_recipe_outputs_recipe ON recipe_outputs(recipe_id
 CREATE INDEX IF NOT EXISTS idx_items_name ON items(name);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);
-CREATE INDEX IF NOT EXISTS idx_preset_recipes_preset ON preset_recipes(preset_id);
-CREATE INDEX IF NOT EXISTS idx_preset_imports_preset ON preset_imports(preset_id);
+CREATE INDEX IF NOT EXISTS idx_cookbook_recipes_cookbook ON cookbook_recipes(cookbook_id);
+CREATE INDEX IF NOT EXISTS idx_cookbook_imports_cookbook ON cookbook_imports(cookbook_id);
 
 -- View for calculating recipe profits
 -- Profit = (Sum of output sell prices after tax) - (Sum of input buy prices)
@@ -182,11 +182,11 @@ LEFT JOIN (
     GROUP BY ro.recipe_id
 ) outputs ON r.id = outputs.recipe_id;
 
--- View for calculating preset recipe profits (same logic as recipe_profits)
-CREATE VIEW IF NOT EXISTS preset_recipe_profits AS
+-- View for calculating cookbook recipe profits (same logic as recipe_profits)
+CREATE VIEW IF NOT EXISTS cookbook_recipe_profits AS
 SELECT
     pr.id,
-    pr.preset_id,
+    pr.cookbook_id,
     pr.sort_order,
     COALESCE(inputs.total_cost, 0) AS input_cost,
     COALESCE(outputs.total_revenue, 0) AS output_revenue,
@@ -198,12 +198,12 @@ SELECT
         THEN ROUND((COALESCE(outputs.total_revenue, 0) - COALESCE(outputs.total_tax, 0) - COALESCE(inputs.total_cost, 0)) * 100.0 / inputs.total_cost, 2)
         ELSE 0
     END AS roi_percent
-FROM preset_recipes pr
+FROM cookbook_recipes pr
 LEFT JOIN (
     SELECT
         pri.recipe_id,
         SUM(COALESCE(ip.high_price, 0) * pri.quantity) AS total_cost
-    FROM preset_recipe_inputs pri
+    FROM cookbook_recipe_inputs pri
     LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
     GROUP BY pri.recipe_id
 ) inputs ON pr.id = inputs.recipe_id
@@ -217,7 +217,7 @@ LEFT JOIN (
                 ELSE MIN(CAST(COALESCE(ip.low_price, 0) * pro.quantity * 0.02 AS INTEGER), 5000000 * pro.quantity)
             END
         ) AS total_tax
-    FROM preset_recipe_outputs pro
+    FROM cookbook_recipe_outputs pro
     LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
     GROUP BY pro.recipe_id
 ) outputs ON pr.id = outputs.recipe_id;

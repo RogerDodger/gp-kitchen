@@ -1,15 +1,15 @@
 % layout 'default';
-% title 'Import - ' . stash('preset')->{name};
+% title 'Import - ' . stash('cookbook')->{name};
 
 <div class="import-page">
-    <h1>Import from "<%= stash('preset')->{name} %>"</h1>
+    <h1>Import from "<%= stash('cookbook')->{name} %>"</h1>
     <p class="page-description">Select which recipes to import to your dashboard.</p>
 
-    <a href="/presets" class="btn btn-secondary">&larr; Back to Presets</a>
+    <a href="/cookbooks" class="btn btn-secondary">&larr; Back to Cookbooks</a>
 
     % my $recipes = stash('recipes') // [];
     % if (@$recipes) {
-        <form method="post" action="/presets/<%= stash('preset')->{id} %>/import" class="import-form">
+        <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/import" class="import-form">
             <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
 
             <div class="select-all-row">
@@ -59,7 +59,7 @@
         </form>
     % } else {
         <div class="empty-state">
-            <p>This preset has no recipes to import.</p>
+            <p>This cookbook has no recipes to import.</p>
         </div>
     % }
 </div>

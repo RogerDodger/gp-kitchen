@@ -1,8 +1,8 @@
 % layout 'default';
-% title 'Edit Recipe - ' . stash('preset')->{name};
+% title 'Edit Recipe - ' . stash('cookbook')->{name};
 
 <div class="edit-recipe">
-    <h1>Edit Recipe in "<%= stash('preset')->{name} %>"</h1>
+    <h1>Edit Recipe in "<%= stash('cookbook')->{name} %>"</h1>
 
     % if (flash 'success') {
         <div class="alert alert-success"><%= flash 'success' %></div>
@@ -11,10 +11,10 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <a href="/presets/<%= stash('preset')->{id} %>/recipes" class="btn btn-secondary">&larr; Back to Preset</a>
+    <a href="/cookbooks/<%= stash('cookbook')->{id} %>/recipes" class="btn btn-secondary">&larr; Back to Cookbook</a>
 
     % my $recipe = stash('recipe');
-    % my $preset = stash('preset');
+    % my $cookbook = stash('cookbook');
 
     <div class="form-section">
         <h2>Inputs (Items you BUY)</h2>
@@ -43,7 +43,7 @@
                             <td><%= format_gp($input->{high_price}) %></td>
                             <td><%= format_gp(($input->{high_price} // 0) * $input->{quantity}) %></td>
                             <td>
-                                <form method="post" action="/presets/<%= $preset->{id} %>/recipes/<%= $recipe->{id} %>/inputs/<%= $input->{id} %>/delete"
+                                <form method="post" action="/cookbooks/<%= $cookbook->{id} %>/recipes/<%= $recipe->{id} %>/inputs/<%= $input->{id} %>/delete"
                                       style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Remove</button>
@@ -59,7 +59,7 @@
 
         <div class="add-item-form">
             <h3>Add Input</h3>
-            <form method="post" action="/presets/<%= $preset->{id} %>/recipes/<%= $recipe->{id} %>/inputs" id="add-input-form">
+            <form method="post" action="/cookbooks/<%= $cookbook->{id} %>/recipes/<%= $recipe->{id} %>/inputs" id="add-input-form">
                 <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                 <div class="item-search-container">
                     <input type="text" id="input-search" placeholder="Search for item..." autocomplete="off">
@@ -101,7 +101,7 @@
                             <td><%= format_gp($output->{low_price}) %></td>
                             <td><%= format_gp($total - $tax) %> <small>(tax: <%= format_gp($tax) %>)</small></td>
                             <td>
-                                <form method="post" action="/presets/<%= $preset->{id} %>/recipes/<%= $recipe->{id} %>/outputs/<%= $output->{id} %>/delete"
+                                <form method="post" action="/cookbooks/<%= $cookbook->{id} %>/recipes/<%= $recipe->{id} %>/outputs/<%= $output->{id} %>/delete"
                                       style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Remove</button>
@@ -117,7 +117,7 @@
 
         <div class="add-item-form">
             <h3>Add Output</h3>
-            <form method="post" action="/presets/<%= $preset->{id} %>/recipes/<%= $recipe->{id} %>/outputs" id="add-output-form">
+            <form method="post" action="/cookbooks/<%= $cookbook->{id} %>/recipes/<%= $recipe->{id} %>/outputs" id="add-output-form">
                 <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                 <div class="item-search-container">
                     <input type="text" id="output-search" placeholder="Search for item..." autocomplete="off">

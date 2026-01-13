@@ -1,33 +1,33 @@
 % layout 'default';
-% title 'Presets';
+% title 'Cookbooks';
 
-<div class="presets-page dashboard" data-mode="patient" data-vol="4h">
-    <h1>Presets</h1>
+<div class="cookbooks-page dashboard" data-mode="patient" data-vol="4h">
+    <h1>Cookbooks</h1>
     <p class="page-description">Curated recipe collections. Import them to your dashboard to jumpstart it.</p>
 
     % if (is_admin) {
         <div class="admin-actions" style="margin-bottom: 1rem;">
-            <a href="/presets/new" class="btn btn-primary">Create New Preset</a>
+            <a href="/cookbooks/new" class="btn btn-primary">Create New Cookbook</a>
         </div>
     % }
 
     %= include 'partials/_price_vol_toggles'
 
-    % my $presets = stash('presets') // [];
-    % if (@$presets) {
-        % for my $preset (@$presets) {
-            <div class="preset-section">
-                <div class="preset-section-header">
-                    <h2><%= $preset->{name} %></h2>
+    % my $cookbooks = stash('cookbooks') // [];
+    % if (@$cookbooks) {
+        % for my $cookbook (@$cookbooks) {
+            <div class="cookbook-section">
+                <div class="cookbook-section-header">
+                    <h2><%= $cookbook->{name} %></h2>
                     % if (is_admin) {
-                        <a href="/presets/<%= $preset->{id} %>/recipes" class="btn btn-secondary btn-small">Edit</a>
+                        <a href="/cookbooks/<%= $cookbook->{id} %>/recipes" class="btn btn-secondary btn-small">Edit</a>
                     % }
-                    <span class="preset-recipe-count"><%= $preset->{total_recipes} %> recipes</span>
+                    <span class="cookbook-recipe-count"><%= $cookbook->{total_recipes} %> recipes</span>
                 </div>
 
-                % if (@{$preset->{recipes}}) {
-                    <div class="preset-recipes-wrapper collapsed">
-                    <div class="preset-recipes-container">
+                % if (@{$cookbook->{recipes}}) {
+                    <div class="cookbook-recipes-wrapper collapsed">
+                    <div class="cookbook-recipes-container">
                     <div class="recipes-grid">
                         <div class="grid-header">
                             <div class="hdr-input">Inputs (Buy)</div>
@@ -40,34 +40,34 @@
                             <div class="hdr-profit col-profit">Profit</div>
                             <div class="hdr-roi col-roi">ROI</div>
                         </div>
-                        % for my $recipe (@{$preset->{recipes}}) {
+                        % for my $recipe (@{$cookbook->{recipes}}) {
                             %= include 'partials/_recipe_pair', recipe => $recipe
                         % }
                     </div>
                     </div>
-                    <button type="button" class="preset-expand-btn">Expand</button>
-                    <div class="preset-footer">
-                        <a href="/presets/<%= $preset->{id} %>/import" class="btn btn-primary btn-small">Import</a>
-                        <span class="preset-imports">
-                            % if ($preset->{import_count} == 1) {
+                    <button type="button" class="cookbook-expand-btn">Expand</button>
+                    <div class="cookbook-footer">
+                        <a href="/cookbooks/<%= $cookbook->{id} %>/import" class="btn btn-primary btn-small">Import</a>
+                        <span class="cookbook-imports">
+                            % if ($cookbook->{import_count} == 1) {
                                 1 person has
                             % } else {
-                                <%= $preset->{import_count} %> people have
+                                <%= $cookbook->{import_count} %> people have
                             % }
-                            imported from this preset
+                            imported from this cookbook
                         </span>
                     </div>
                     </div>
                 % } else {
-                    <p class="empty-hint">No recipes in this preset yet.</p>
+                    <p class="empty-hint">No recipes in this cookbook yet.</p>
                 % }
             </div>
         % }
     % } else {
         <div class="empty-state">
-            <p>No presets available yet.</p>
+            <p>No cookbooks available yet.</p>
             % if (is_admin) {
-                <a href="/presets/new" class="btn btn-primary">Create the first preset</a>
+                <a href="/cookbooks/new" class="btn btn-primary">Create the first cookbook</a>
             % }
         </div>
     % }
@@ -90,9 +90,9 @@
             document.querySelectorAll('.vol-toggle').forEach(b => b.classList.toggle('active', b.dataset.vol === vol));
         });
     });
-    document.querySelectorAll('.preset-expand-btn').forEach(btn => {
+    document.querySelectorAll('.cookbook-expand-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const wrapper = btn.closest('.preset-recipes-wrapper');
+            const wrapper = btn.closest('.cookbook-recipes-wrapper');
             wrapper.classList.toggle('collapsed');
             btn.textContent = wrapper.classList.contains('collapsed') ? 'Expand' : 'Collapse';
         });
