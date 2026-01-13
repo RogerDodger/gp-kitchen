@@ -12,11 +12,9 @@
     % }
 
     <div class="admin-section">
-        <h2>Recipes</h2>
-
         <form method="post" action="/cook/recipe" class="new-recipe-form">
             <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-            <button type="submit" class="btn btn-primary">Add New Recipe</button>
+            <button type="submit" class="btn btn-primary">Cook a new recipe</button>
         </form>
 
         % my $recipes = stash('recipes') // [];
@@ -98,7 +96,7 @@
                 </tbody>
             </table>
         % } else {
-            <p class="empty-state">No recipes yet. Create one above!</p>
+            <p class="empty-state">No recipes yet. Cook one above!</p>
         % }
     </div>
 </div>

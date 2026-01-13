@@ -59,7 +59,7 @@
                     </div>
                     </div>
                 % } else {
-                    <p class="empty-hint">No recipes in this cookbook yet.</p>
+                    <p class="empty-hint">Nothing in this cookbook yet.</p>
                 % }
             </div>
         % }

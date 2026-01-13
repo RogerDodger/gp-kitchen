@@ -27,7 +27,7 @@
     % } else {
         <div class="empty-state">
             <p>Your dashboard is empty.</p>
-            <p>Browse <a href="/cookbooks">cookbooks</a> to jumpstart it, or create your own <a href="/cook">recipes</a>.</p>
+            <p>Browse <a href="/cookbooks">cookbooks</a> to jumpstart it, or <a href="/cook">cook your own recipes</a>.</p>
         </div>
     % }
 

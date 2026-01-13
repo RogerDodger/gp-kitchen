@@ -11,13 +11,13 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <a href="/cook" class="btn btn-secondary">&larr; Back to Recipes</a>
+    <a href="/cook" class="btn btn-secondary">&larr; Back</a>
 
     % my $recipe = stash('recipe');
 
     <div class="form-section">
         <h2>Inputs (Items you BUY)</h2>
-        <p class="hint">These are the items you purchase to make the recipe. Their instant-buy (ask) price is used.</p>
+        <p class="hint">Items needed for the recipe. Their instant-buy (ask) price is used.</p>
 
         % if (@{$recipe->{inputs}}) {
             <table class="items-table">
@@ -73,7 +73,7 @@
 
     <div class="form-section">
         <h2>Outputs (Items you SELL)</h2>
-        <p class="hint">These are the items you receive and sell. Their instant-sell (bid) price is used, minus 2% tax (capped at 5M).</p>
+        <p class="hint">Items made by the recipe. Their instant-sell (bid) price is used, minus 2% tax (capped at 5M).</p>
 
         % if (@{$recipe->{outputs}}) {
             <table class="items-table">
