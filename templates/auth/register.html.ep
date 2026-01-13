@@ -1,0 +1,38 @@
+% layout 'default';
+% title 'Register';
+
+<div class="login-container">
+    <h1><%= is_guest() ? 'Save Account' : 'Register' %></h1>
+
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    % if (is_guest()) {
+        <p class="info-text">Save your dashboard by creating an account. You'll be able to log in from any device.</p>
+    % }
+
+    <form method="post" action="/register">
+        <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus maxlength="256">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="6">
+            <small>At least 6 characters</small>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+        <button type="submit" class="btn btn-primary"><%= is_guest() ? 'Save Account' : 'Register' %></button>
+    </form>
+
+    % unless (is_guest()) {
+        <p style="margin-top: 1rem; text-align: center;">
+            Already have an account? <a href="/login">Login</a>
+        </p>
+    % }
+</div>

@@ -37,27 +37,3 @@
         </div>
     % }
 </div>
-
-<script>
-(function() {
-    const dashboard = document.querySelector('.dashboard');
-
-    // Mode toggle
-    document.querySelectorAll('.mode-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const mode = btn.dataset.mode;
-            dashboard.dataset.mode = mode;
-            document.querySelectorAll('.mode-toggle').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-        });
-    });
-
-    // Volume toggle
-    document.querySelectorAll('.vol-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const vol = btn.dataset.vol;
-            dashboard.dataset.vol = vol;
-            document.querySelectorAll('.vol-toggle').forEach(b => b.classList.toggle('active', b.dataset.vol === vol));
-        });
-    });
-})();
-</script>

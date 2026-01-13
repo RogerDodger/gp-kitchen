@@ -32,8 +32,8 @@
     % if (is_guest && current_user) {
         <div class="guest-banner">
             You're using a guest account.
-            <a href="/register">Save your account</a> to keep your dashboard, or
-            <a href="/logout">destroy it</a> to start over.
+            <a href="/register">Save your account</a> to keep your dashboard.
+            <a href="/logout">Destroy it</a> if you want to start over.
         </div>
     % }
 

@@ -129,42 +129,6 @@
             </form>
         </div>
     </div>
-
-    <div class="profit-preview">
-        <h2>Profit Preview</h2>
-        % my $input_cost = 0;
-        % for my $input (@{$recipe->{inputs}}) {
-        %     $input_cost += ($input->{high_price} // 0) * $input->{quantity};
-        % }
-        % my $output_revenue = 0;
-        % my $total_tax = 0;
-        % for my $output (@{$recipe->{outputs}}) {
-        %     my $total = ($output->{low_price} // 0) * $output->{quantity};
-        %     my $tax = calculate_tax($output->{low_price}, $output->{quantity});
-        %     $output_revenue += $total;
-        %     $total_tax += $tax;
-        % }
-        % my $profit = $output_revenue - $total_tax - $input_cost;
-
-        <table>
-            <tr>
-                <td>Input Cost:</td>
-                <td><%= format_gp($input_cost) %></td>
-            </tr>
-            <tr>
-                <td>Output Revenue:</td>
-                <td><%= format_gp($output_revenue) %></td>
-            </tr>
-            <tr>
-                <td>Tax:</td>
-                <td><%= format_gp($total_tax) %></td>
-            </tr>
-            <tr class="<%= $profit > 0 ? 'positive' : ($profit < 0 ? 'negative' : '') %>">
-                <td><strong>Profit:</strong></td>
-                <td><strong><%= format_gp($profit) %></strong></td>
-            </tr>
-        </table>
-    </div>
 </div>
 
 % content_for 'scripts' => begin

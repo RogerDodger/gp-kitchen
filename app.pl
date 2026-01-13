@@ -331,12 +331,8 @@ post '/register' => sub ($c) {
     my $confirm = $c->param('confirm_password') // '';
 
     # Validation
-    if (length($username) < 3 || length($username) > 20) {
-        $c->flash(error => 'Username must be 3-20 characters');
-        return $c->redirect_to('/register');
-    }
-    unless ($username =~ /^[a-zA-Z0-9_]+$/) {
-        $c->flash(error => 'Username can only contain letters, numbers, and underscores');
+    if (length($username) == 0 || length($username) > 256) {
+        $c->flash(error => 'Username must be 1-256 characters');
         return $c->redirect_to('/register');
     }
     if (length($password) < 6) {
@@ -930,81 +926,3 @@ group {
 
 # Start the app
 app->start;
-
-__DATA__
-
-@@ auth/login.html.ep
-% layout 'default';
-% title 'Login';
-
-<div class="login-container">
-    <h1>Login</h1>
-
-    % if (flash 'error') {
-        <div class="alert alert-error"><%= flash 'error' %></div>
-    % }
-
-    <form method="post" action="/login">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required autofocus>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Login</button>
-    </form>
-
-    % if (is_guest) {
-        <div class="alert alert-warning" style="margin-top: 1rem;">
-            Warning: Logging in will destroy your guest account.
-        </div>
-    % } else {
-        <p style="margin-top: 1rem; text-align: center;">
-            Don't have an account? <a href="/register">Register</a>
-        </p>
-    % }
-</div>
-
-@@ auth/register.html.ep
-% layout 'default';
-% title 'Register';
-
-<div class="login-container">
-    <h1><%= is_guest() ? 'Save Account' : 'Register' %></h1>
-
-    % if (flash 'error') {
-        <div class="alert alert-error"><%= flash 'error' %></div>
-    % }
-
-    % if (is_guest()) {
-        <p class="info-text">Save your dashboard by creating an account. You'll be able to log in from any device.</p>
-    % }
-
-    <form method="post" action="/register">
-        <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required autofocus
-                   pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="20">
-            <small>3-20 characters, letters, numbers, and underscores only</small>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required minlength="6">
-            <small>At least 6 characters</small>
-        </div>
-        <div class="form-group">
-            <label for="confirm_password">Confirm Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
-        </div>
-        <button type="submit" class="btn btn-primary"><%= is_guest() ? 'Save Account' : 'Register' %></button>
-    </form>
-
-    % unless (is_guest()) {
-        <p style="margin-top: 1rem; text-align: center;">
-            Already have an account? <a href="/login">Login</a>
-        </p>
-    % }
-</div>

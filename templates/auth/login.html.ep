@@ -1,0 +1,32 @@
+% layout 'default';
+% title 'Login';
+
+<div class="login-container">
+    <h1>Login</h1>
+
+    % if (flash 'error') {
+        <div class="alert alert-error"><%= flash 'error' %></div>
+    % }
+
+    <form method="post" action="/login">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+
+    % if (is_guest) {
+        <div class="alert alert-warning" style="margin-top: 1rem;">
+            Warning: Logging in will destroy your guest account.
+        </div>
+    % } else {
+        <p style="margin-top: 1em; text-align: center;">
+            Don't have an account? <a href="/register">Register</a>
+        </p>
+    % }
+</div>
