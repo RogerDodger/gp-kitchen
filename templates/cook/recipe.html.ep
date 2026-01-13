@@ -12,7 +12,7 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <a href="/cook" class="btn btn-secondary">&larr; Back</a>
+    <a href="<%= is_authenticated ? '/cook' : '/' %>" class="btn btn-secondary">&larr; Back</a>
 
     % my $recipe = stash('recipe');
 

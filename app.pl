@@ -405,11 +405,9 @@ group {
     # Edit recipe form (or blank for new)
     get '/recipe/:id' => sub ($c) {
         my $user = $c->current_user;
-        return $c->redirect_to('/login') unless $user;
-
         my $id = $c->param('id');
 
-        # Handle 'blank' as a special case for new recipe
+        # Handle 'blank' as a special case for new recipe (no auth needed)
         if ($id eq 'blank') {
             my $recipe = {
                 id => 'blank',
@@ -422,6 +420,8 @@ group {
             return $c->render(template => 'cook/recipe');
         }
 
+        # Non-blank recipes require authentication
+        return $c->redirect_to('/login') unless $user;
         return $c->render(text => 'Not authorized', status => 403)
             unless $schema->user_owns_recipe($user->{id}, $id);
 
