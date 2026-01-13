@@ -1161,7 +1161,7 @@ a.item-name:hover {
     padding: 1.5rem;
     border-radius: 8px;
     border: 1px solid var(--border);
-    margin-top: 1rem;
+    margin: 1em 0;
 }
 
 .cookbook-form textarea {

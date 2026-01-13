@@ -13,16 +13,16 @@
 
     <a href="/cookbooks" class="btn btn-secondary">&larr; Back to Cookbooks</a>
 
-    <div class="admin-section">
-        <h2>Cookbook Details</h2>
-        <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/edit" class="cookbook-edit-form">
-            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-            <div class="form-row">
-                <input type="text" name="name" value="<%= stash('cookbook')->{name} %>" required placeholder="Name">
-                <button type="submit" class="btn btn-small">Update</button>
-            </div>
-        </form>
-    </div>
+    <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/edit" class="cookbook-form">
+        <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" value="<%= stash('cookbook')->{name} %>" required maxlength="100">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Cookbook</button>
+    </form>
 
     <div class="admin-section">
         <h2>Recipes</h2>
