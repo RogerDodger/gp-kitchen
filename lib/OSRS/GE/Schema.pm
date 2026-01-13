@@ -437,8 +437,10 @@ sub create_recipe {
 }
 
 sub delete_recipe {
-    my ($self, $id) = @_;
-    $self->dbh->do('DELETE FROM recipes WHERE id = ?', undef, $id);
+    my ($self, $id, $mode) = @_;
+    $mode //= 'recipe';
+    my $table = $mode eq 'recipe' ? 'recipes' : 'cookbook_recipes';
+    $self->dbh->do("DELETE FROM $table WHERE id = ?", undef, $id);
 }
 
 sub toggle_recipe_active {
@@ -499,8 +501,9 @@ sub toggle_recipe_live {
 }
 
 sub reorder_recipes {
-    my ($self, $ids, $table) = @_;
-    $table //= 'recipes';
+    my ($self, $ids, $mode) = @_;
+    $mode //= 'recipe';
+    my $table = $mode eq 'recipe' ? 'recipes' : 'cookbook_recipes';
     my $order = 0;
     for my $id (@$ids) {
         $self->dbh->do("UPDATE $table SET sort_order = ? WHERE id = ?",
@@ -509,8 +512,9 @@ sub reorder_recipes {
 }
 
 sub swap_recipe_order {
-    my ($self, $ids, $id, $dir, $table) = @_;
-    $table //= 'recipes';
+    my ($self, $ids, $id, $dir, $mode) = @_;
+    $mode //= 'recipe';
+    my $table = $mode eq 'recipe' ? 'recipes' : 'cookbook_recipes';
 
     my ($idx) = grep { $ids->[$_] == $id } 0..$#$ids;
     return unless defined $idx;
@@ -519,7 +523,7 @@ sub swap_recipe_order {
     return if $swap_idx < 0 || $swap_idx > $#$ids;
 
     # For user recipes, check if both items have same live status
-    if ($table eq 'recipes') {
+    if ($mode eq 'recipe') {
         my $live_status = $self->dbh->selectall_hashref(
             'SELECT id, live FROM recipes WHERE id IN (?, ?)',
             'id', undef, $ids->[$idx], $ids->[$swap_idx]
@@ -528,33 +532,52 @@ sub swap_recipe_order {
     }
 
     @$ids[$idx, $swap_idx] = @$ids[$swap_idx, $idx];
-    $self->reorder_recipes($ids, $table);
+    $self->reorder_recipes($ids, $mode);
+}
+
+# Helper to fetch inputs/outputs for a recipe
+# $mode: 'recipe' for user recipes, 'cookbook_recipe' for cookbook recipes
+# $with_volumes: include volume data (for list views)
+sub _fetch_recipe_items {
+    my ($self, $recipe_id, $mode, $with_volumes) = @_;
+    $mode //= 'recipe';
+    my $input_table = "${mode}_inputs";
+    my $output_table = "${mode}_outputs";
+
+    my $volume_cols = $with_volumes
+        ? ', ip.high_time, ip.low_time, iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low, iv.vol_24h_high, iv.vol_24h_low'
+        : '';
+    my $volume_join = $with_volumes
+        ? 'LEFT JOIN item_volumes iv ON t.item_id = iv.item_id'
+        : '';
+
+    my $inputs = $self->dbh->selectall_arrayref(qq{
+        SELECT t.*, i.name, i.icon, ip.high_price, ip.low_price$volume_cols
+        FROM $input_table t
+        JOIN items i ON t.item_id = i.id
+        LEFT JOIN item_prices ip ON t.item_id = ip.item_id
+        $volume_join
+        WHERE t.recipe_id = ?
+    }, { Slice => {} }, $recipe_id);
+
+    my $outputs = $self->dbh->selectall_arrayref(qq{
+        SELECT t.*, i.name, i.icon, ip.high_price, ip.low_price$volume_cols
+        FROM $output_table t
+        JOIN items i ON t.item_id = i.id
+        LEFT JOIN item_prices ip ON t.item_id = ip.item_id
+        $volume_join
+        WHERE t.recipe_id = ?
+    }, { Slice => {} }, $recipe_id);
+
+    return ($inputs, $outputs);
 }
 
 sub get_recipe {
     my ($self, $id) = @_;
-    my $sql = 'SELECT * FROM recipes WHERE id = ?';
-    my $recipe = $self->dbh->selectrow_hashref($sql, undef, $id);
+    my $recipe = $self->dbh->selectrow_hashref('SELECT * FROM recipes WHERE id = ?', undef, $id);
     return unless $recipe;
 
-    # Get inputs
-    $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
-        SELECT ri.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM recipe_inputs ri
-        JOIN items i ON ri.item_id = i.id
-        LEFT JOIN item_prices ip ON ri.item_id = ip.item_id
-        WHERE ri.recipe_id = ?
-    }, { Slice => {} }, $id);
-
-    # Get outputs
-    $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
-        SELECT ro.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM recipe_outputs ro
-        JOIN items i ON ro.item_id = i.id
-        LEFT JOIN item_prices ip ON ro.item_id = ip.item_id
-        WHERE ro.recipe_id = ?
-    }, { Slice => {} }, $id);
-
+    ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($id, 'recipe');
     return $recipe;
 }
 
@@ -577,29 +600,8 @@ sub get_all_recipes {
 
     my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $user_id);
 
-    # Fetch inputs and outputs for each recipe
     for my $recipe (@$recipes) {
-        $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
-            SELECT ri.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
-                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
-                   iv.vol_24h_high, iv.vol_24h_low
-            FROM recipe_inputs ri
-            JOIN items i ON ri.item_id = i.id
-            LEFT JOIN item_prices ip ON ri.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON ri.item_id = iv.item_id
-            WHERE ri.recipe_id = ?
-        }, { Slice => {} }, $recipe->{id});
-
-        $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
-            SELECT ro.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
-                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
-                   iv.vol_24h_high, iv.vol_24h_low
-            FROM recipe_outputs ro
-            JOIN items i ON ro.item_id = i.id
-            LEFT JOIN item_prices ip ON ro.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON ro.item_id = iv.item_id
-            WHERE ro.recipe_id = ?
-        }, { Slice => {} }, $recipe->{id});
+        ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($recipe->{id}, 'recipe', 1);
     }
 
     return $recipes;
@@ -609,30 +611,47 @@ sub get_all_recipes {
 # Recipe Input/Output management
 # =====================================
 
+# Generic recipe item management (works for both user recipes and cookbook recipes)
+# $mode: 'recipe' for user recipes, 'cookbook_recipe' for cookbook recipes
+# $type: 'input' or 'output'
+sub add_recipe_item {
+    my ($self, $recipe_id, $item_id, $quantity, $type, $mode) = @_;
+    $quantity //= 1;
+    $mode //= 'recipe';
+    my $table = "${mode}_${type}s";
+    $self->dbh->do(
+        "INSERT INTO $table (recipe_id, item_id, quantity) VALUES (?, ?, ?)",
+        undef, $recipe_id, $item_id, $quantity
+    );
+    return $self->dbh->last_insert_id(undef, undef, $table, 'id');
+}
+
+sub remove_recipe_item {
+    my ($self, $item_id, $type, $mode) = @_;
+    $mode //= 'recipe';
+    my $table = "${mode}_${type}s";
+    $self->dbh->do("DELETE FROM $table WHERE id = ?", undef, $item_id);
+}
+
+# Convenience wrappers for user recipes
 sub add_recipe_input {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
-    $quantity //= 1;
-    my $sql = 'INSERT INTO recipe_inputs (recipe_id, item_id, quantity) VALUES (?, ?, ?)';
-    $self->dbh->do($sql, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'recipe_inputs', 'id');
+    return $self->add_recipe_item($recipe_id, $item_id, $quantity, 'input', 'recipe');
 }
 
 sub add_recipe_output {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
-    $quantity //= 1;
-    my $sql = 'INSERT INTO recipe_outputs (recipe_id, item_id, quantity) VALUES (?, ?, ?)';
-    $self->dbh->do($sql, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'recipe_outputs', 'id');
+    return $self->add_recipe_item($recipe_id, $item_id, $quantity, 'output', 'recipe');
 }
 
 sub remove_recipe_input {
     my ($self, $input_id) = @_;
-    $self->dbh->do('DELETE FROM recipe_inputs WHERE id = ?', undef, $input_id);
+    $self->remove_recipe_item($input_id, 'input', 'recipe');
 }
 
 sub remove_recipe_output {
     my ($self, $output_id) = @_;
-    $self->dbh->do('DELETE FROM recipe_outputs WHERE id = ?', undef, $output_id);
+    $self->remove_recipe_item($output_id, 'output', 'recipe');
 }
 
 # =====================================
@@ -778,34 +797,15 @@ sub create_cookbook_recipe {
 
 sub delete_cookbook_recipe {
     my ($self, $id) = @_;
-    $self->dbh->do('DELETE FROM cookbook_recipes WHERE id = ?', undef, $id);
+    $self->delete_recipe($id, 'cookbook_recipe');
 }
 
 sub get_cookbook_recipe {
     my ($self, $id) = @_;
-    my $recipe = $self->dbh->selectrow_hashref(
-        'SELECT * FROM cookbook_recipes WHERE id = ?', undef, $id
-    );
+    my $recipe = $self->dbh->selectrow_hashref('SELECT * FROM cookbook_recipes WHERE id = ?', undef, $id);
     return unless $recipe;
 
-    # Get inputs
-    $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
-        SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM cookbook_recipe_inputs pri
-        JOIN items i ON pri.item_id = i.id
-        LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
-        WHERE pri.recipe_id = ?
-    }, { Slice => {} }, $id);
-
-    # Get outputs
-    $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
-        SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price
-        FROM cookbook_recipe_outputs pro
-        JOIN items i ON pro.item_id = i.id
-        LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
-        WHERE pro.recipe_id = ?
-    }, { Slice => {} }, $id);
-
+    ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($id, 'cookbook_recipe');
     return $recipe;
 }
 
@@ -827,63 +827,32 @@ sub get_cookbook_recipes {
 
     my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $cookbook_id);
 
-    # Fetch inputs and outputs for each recipe
     for my $recipe (@$recipes) {
-        $recipe->{inputs} = $self->dbh->selectall_arrayref(q{
-            SELECT pri.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
-                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
-                   iv.vol_24h_high, iv.vol_24h_low
-            FROM cookbook_recipe_inputs pri
-            JOIN items i ON pri.item_id = i.id
-            LEFT JOIN item_prices ip ON pri.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON pri.item_id = iv.item_id
-            WHERE pri.recipe_id = ?
-        }, { Slice => {} }, $recipe->{id});
-
-        $recipe->{outputs} = $self->dbh->selectall_arrayref(q{
-            SELECT pro.*, i.name, i.icon, ip.high_price, ip.low_price, ip.high_time, ip.low_time,
-                   iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low,
-                   iv.vol_24h_high, iv.vol_24h_low
-            FROM cookbook_recipe_outputs pro
-            JOIN items i ON pro.item_id = i.id
-            LEFT JOIN item_prices ip ON pro.item_id = ip.item_id
-            LEFT JOIN item_volumes iv ON pro.item_id = iv.item_id
-            WHERE pro.recipe_id = ?
-        }, { Slice => {} }, $recipe->{id});
+        ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($recipe->{id}, 'cookbook_recipe', 1);
     }
 
     return $recipes;
 }
 
-# Cookbook recipe input/output management
+# Convenience wrappers for cookbook recipes (use generic methods)
 sub add_cookbook_recipe_input {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
-    $quantity //= 1;
-    $self->dbh->do(q{
-        INSERT INTO cookbook_recipe_inputs (recipe_id, item_id, quantity)
-        VALUES (?, ?, ?)
-    }, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'cookbook_recipe_inputs', 'id');
+    return $self->add_recipe_item($recipe_id, $item_id, $quantity, 'input', 'cookbook_recipe');
 }
 
 sub add_cookbook_recipe_output {
     my ($self, $recipe_id, $item_id, $quantity) = @_;
-    $quantity //= 1;
-    $self->dbh->do(q{
-        INSERT INTO cookbook_recipe_outputs (recipe_id, item_id, quantity)
-        VALUES (?, ?, ?)
-    }, undef, $recipe_id, $item_id, $quantity);
-    return $self->dbh->last_insert_id(undef, undef, 'cookbook_recipe_outputs', 'id');
+    return $self->add_recipe_item($recipe_id, $item_id, $quantity, 'output', 'cookbook_recipe');
 }
 
 sub remove_cookbook_recipe_input {
     my ($self, $input_id) = @_;
-    $self->dbh->do('DELETE FROM cookbook_recipe_inputs WHERE id = ?', undef, $input_id);
+    $self->remove_recipe_item($input_id, 'input', 'cookbook_recipe');
 }
 
 sub remove_cookbook_recipe_output {
     my ($self, $output_id) = @_;
-    $self->dbh->do('DELETE FROM cookbook_recipe_outputs WHERE id = ?', undef, $output_id);
+    $self->remove_recipe_item($output_id, 'output', 'cookbook_recipe');
 }
 
 # Check if recipe belongs to cookbook

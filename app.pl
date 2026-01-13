@@ -477,7 +477,7 @@ group {
                     unless $schema->user_owns_recipe($user->{id}, $recipe_id);
             }
 
-            $schema->swap_recipe_order(\@ids, $id, $dir, 'recipes');
+            $schema->swap_recipe_order(\@ids, $id, $dir, 'recipe');
         }
         $c->flash(restore_scroll => 1);
         $c->redirect_to('/cook');
@@ -881,7 +881,7 @@ group {
                     unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
             }
 
-            $schema->swap_recipe_order(\@ids, $id, $dir, 'cookbook_recipes');
+            $schema->swap_recipe_order(\@ids, $id, $dir, 'cookbook_recipe');
         }
         $c->flash(restore_scroll => 1);
         $c->redirect_to("/cookbooks/$cookbook_id/recipes");
