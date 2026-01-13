@@ -1,12 +1,16 @@
-# flippa Configuration
-# Copy to config.yml and customize
+# GP Kitchen Configuration
 
-admin_password: "changeme123"
+# Development mode - enables Update Prices button
+dev_mode: true
 
+# Database paths (relative to app directory)
 database:
-  path: "data/osrs_ge.db"
+  main_path: "data/gp_kitchen.db"
+  prices_path: "data/prices.db"
 
+# Session secret - change in production
 session:
   secret: "change_this_to_a_random_string_in_production"
 
-user_agent: "flippa/1.0 (contact@example.com)"
+# User agent for OSRS Wiki API (required by their API)
+user_agent: "GP-Kitchen/1.0 (Personal flip tracking tool)"

@@ -5,22 +5,24 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Mojolicious::Lite -signatures;
-use YAML qw(LoadFile);
+use YAML::PP;
 use OSRS::GE::Schema;
 use OSRS::GE::PriceUpdater;
 
 # Load configuration
 my $config_file = $ENV{GP_KITCHEN_CONFIG} // "$FindBin::Bin/config.yml";
-my $config = LoadFile($config_file);
+my $config = YAML::PP->new->load_file($config_file);
 
 # Initialize database
 my $schema = OSRS::GE::Schema->new(
-    db_path => "$FindBin::Bin/" . $config->{database}{path}
+    db_path        => "$FindBin::Bin/" . $config->{database}{main_path},
+    prices_db_path => "$FindBin::Bin/" . $config->{database}{prices_path},
 );
-$schema->init_schema("$FindBin::Bin/schema.sql");
+$schema->init_schema("$FindBin::Bin/schema.sql", "$FindBin::Bin/prices_schema.sql");
 
-# Run migration if needed
+# Run migrations if needed
 $schema->migrate($config->{admin_password});
+$schema->migrate_prices_to_separate_db;
 
 # Store in app
 app->helper(schema => sub { $schema });

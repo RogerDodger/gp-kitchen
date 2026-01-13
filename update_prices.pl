@@ -8,7 +8,7 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Getopt::Long;
-use YAML qw(LoadFile);
+use YAML::PP;
 use OSRS::GE::Schema;
 use OSRS::GE::PriceUpdater;
 use POSIX qw(strftime);
@@ -22,15 +22,16 @@ GetOptions(
 
 sub log_msg { print "[", strftime("%Y-%m-%d %H:%M:%S", localtime), "] ", @_, "\n" }
 
-my $config_file = $ENV{FLIPPA_CONFIG} // "$FindBin::Bin/config.yml";
+my $config_file = $ENV{GP_KITCHEN_CONFIG} // "$FindBin::Bin/config.yml";
 die "Config not found: $config_file\n" unless -f $config_file;
 
-my $config = LoadFile($config_file);
+my $config = YAML::PP->new->load_file($config_file);
 
 my $schema = OSRS::GE::Schema->new(
-    db_path => "$FindBin::Bin/" . $config->{database}{path}
+    db_path        => "$FindBin::Bin/" . $config->{database}{main_path},
+    prices_db_path => "$FindBin::Bin/" . $config->{database}{prices_path},
 );
-$schema->init_schema("$FindBin::Bin/schema.sql");
+$schema->init_schema("$FindBin::Bin/schema.sql", "$FindBin::Bin/prices_schema.sql");
 
 my $updater = OSRS::GE::PriceUpdater->new(
     schema     => $schema,

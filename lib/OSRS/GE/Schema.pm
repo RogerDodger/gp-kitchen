@@ -9,8 +9,10 @@ use Crypt::Bcrypt qw(bcrypt bcrypt_check);
 sub new {
     my ($class, %args) = @_;
     my $self = bless {
-        db_path => $args{db_path} // 'data/osrs_ge.db',
-        dbh     => undef,
+        db_path        => $args{db_path} // 'data/osrs_ge.db',
+        prices_db_path => $args{prices_db_path} // 'data/prices.db',
+        dbh            => undef,
+        prices_dbh     => undef,
     }, $class;
     return $self;
 }
@@ -19,10 +21,13 @@ sub connect {
     my ($self) = @_;
     return $self->{dbh} if $self->{dbh};
 
-    # Ensure directory exists
-    my $dir = dirname($self->{db_path});
-    make_path($dir) unless -d $dir;
+    # Ensure directories exist
+    for my $path ($self->{db_path}, $self->{prices_db_path}) {
+        my $dir = dirname($path);
+        make_path($dir) unless -d $dir;
+    }
 
+    # Connect to main database
     $self->{dbh} = DBI->connect(
         "dbi:SQLite:dbname=$self->{db_path}",
         '', '',
@@ -32,11 +37,34 @@ sub connect {
             sqlite_unicode => 1,
         }
     );
-
-    # Enable foreign keys
     $self->{dbh}->do('PRAGMA foreign_keys = ON');
 
+    # Attach prices database for reading
+    $self->{dbh}->do("ATTACH DATABASE '$self->{prices_db_path}' AS prices");
+
     return $self->{dbh};
+}
+
+sub connect_prices {
+    my ($self) = @_;
+    return $self->{prices_dbh} if $self->{prices_dbh};
+
+    # Ensure directory exists
+    my $dir = dirname($self->{prices_db_path});
+    make_path($dir) unless -d $dir;
+
+    # Separate connection for price writes (independent lock)
+    $self->{prices_dbh} = DBI->connect(
+        "dbi:SQLite:dbname=$self->{prices_db_path}",
+        '', '',
+        {
+            RaiseError     => 1,
+            AutoCommit     => 1,
+            sqlite_unicode => 1,
+        }
+    );
+
+    return $self->{prices_dbh};
 }
 
 sub dbh {
@@ -44,9 +72,30 @@ sub dbh {
     return $self->{dbh} // $self->connect;
 }
 
+sub prices_dbh {
+    my ($self) = @_;
+    return $self->{prices_dbh} // $self->connect_prices;
+}
+
 sub init_schema {
-    my ($self, $schema_file) = @_;
+    my ($self, $schema_file, $prices_schema_file) = @_;
     $schema_file //= 'schema.sql';
+    $prices_schema_file //= 'prices_schema.sql';
+
+    # Initialize prices database first (needed before main schema due to ATTACH)
+    $self->_init_schema_file($self->prices_dbh, $prices_schema_file);
+
+    # Initialize main database (will ATTACH prices)
+    $self->_init_schema_file($self->dbh, $schema_file);
+
+    # Ensure coins exists
+    $self->_init_coins;
+
+    return 1;
+}
+
+sub _init_schema_file {
+    my ($self, $dbh, $schema_file) = @_;
 
     open my $fh, '<', $schema_file or die "Cannot open $schema_file: $!";
     my $sql = do { local $/; <$fh> };
@@ -56,27 +105,21 @@ sub init_schema {
     my @statements = grep { /\S/ } split /;/, $sql;
     for my $stmt (@statements) {
         next unless $stmt =~ /\S/;
-        $self->dbh->do($stmt);
+        $dbh->do($stmt);
     }
-
-    # Ensure coins exists (ID 995) with fixed price of 1 gp
-    $self->_init_coins;
-
-    return 1;
 }
 
 sub _init_coins {
     my ($self) = @_;
-    my $dbh = $self->dbh;
 
-    # Insert coins item
-    $dbh->do(q{
+    # Insert coins item in main db
+    $self->dbh->do(q{
         INSERT OR IGNORE INTO items (id, name, examine, members, lowalch, highalch, ge_limit, icon, updated_at)
         VALUES (995, 'Coins', 'Lovely money!', 0, 0, 0, 0, 'Coins_10000.png', strftime('%s', 'now'))
     });
 
-    # Set coins price to 1 gp
-    $dbh->do(q{
+    # Set coins price to 1 gp in prices db
+    $self->prices_dbh->do(q{
         INSERT OR REPLACE INTO item_prices (item_id, high_price, high_time, low_price, low_time, updated_at)
         VALUES (995, 1, strftime('%s', 'now'), 1, strftime('%s', 'now'), strftime('%s', 'now'))
     });
@@ -148,6 +191,93 @@ sub migrate {
         $dbh->rollback;
         die "Migration failed: $@";
     }
+}
+
+sub migrate_prices_to_separate_db {
+    my ($self) = @_;
+    my $dbh = $self->dbh;
+    my $prices_dbh = $self->prices_dbh;
+
+    # Check if old item_prices table exists in main database
+    my $has_old_prices = $dbh->selectrow_array(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='item_prices'"
+    );
+    return unless $has_old_prices;
+
+    # Check if prices db already has data (avoid duplicate migration)
+    my ($prices_count) = $prices_dbh->selectrow_array('SELECT COUNT(*) FROM item_prices');
+    if ($prices_count > 1) {  # > 1 because coins (995) is always inserted
+        # Already migrated, just drop old tables
+        $dbh->do('DROP TABLE IF EXISTS item_prices');
+        $dbh->do('DROP TABLE IF EXISTS item_volumes');
+        return;
+    }
+
+    # Migrate item_prices
+    my $old_prices = $dbh->selectall_arrayref(
+        'SELECT * FROM item_prices', { Slice => {} }
+    );
+    if (@$old_prices) {
+        $prices_dbh->begin_work;
+        eval {
+            my $sth = $prices_dbh->prepare(q{
+                INSERT OR REPLACE INTO item_prices
+                (item_id, high_price, high_time, low_price, low_time,
+                 avg_high_price, avg_low_price, high_volume, low_volume, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            });
+            for my $p (@$old_prices) {
+                $sth->execute(
+                    $p->{item_id}, $p->{high_price}, $p->{high_time},
+                    $p->{low_price}, $p->{low_time}, $p->{avg_high_price},
+                    $p->{avg_low_price}, $p->{high_volume}, $p->{low_volume},
+                    $p->{updated_at}
+                );
+            }
+            $prices_dbh->commit;
+        };
+        if ($@) {
+            $prices_dbh->rollback;
+            die "Price migration failed: $@";
+        }
+    }
+
+    # Migrate item_volumes if exists
+    my $has_old_volumes = $dbh->selectrow_array(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='item_volumes'"
+    );
+    if ($has_old_volumes) {
+        my $old_volumes = $dbh->selectall_arrayref(
+            'SELECT * FROM item_volumes', { Slice => {} }
+        );
+        if (@$old_volumes) {
+            $prices_dbh->begin_work;
+            eval {
+                my $sth = $prices_dbh->prepare(q{
+                    INSERT OR REPLACE INTO item_volumes
+                    (item_id, vol_5m_high, vol_5m_low, vol_4h_high, vol_4h_low,
+                     vol_24h_high, vol_24h_low, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                });
+                for my $v (@$old_volumes) {
+                    $sth->execute(
+                        $v->{item_id}, $v->{vol_5m_high}, $v->{vol_5m_low},
+                        $v->{vol_4h_high}, $v->{vol_4h_low}, $v->{vol_24h_high},
+                        $v->{vol_24h_low}, $v->{updated_at}
+                    );
+                }
+                $prices_dbh->commit;
+            };
+            if ($@) {
+                $prices_dbh->rollback;
+                die "Volume migration failed: $@";
+            }
+        }
+    }
+
+    # Drop old tables from main database
+    $dbh->do('DROP TABLE IF EXISTS item_prices');
+    $dbh->do('DROP TABLE IF EXISTS item_volumes');
 }
 
 sub _random_salt {
@@ -292,7 +422,7 @@ sub get_item {
         SELECT i.*, ip.high_price, ip.high_time, ip.low_price, ip.low_time,
                ip.avg_high_price, ip.avg_low_price, ip.high_volume, ip.low_volume
         FROM items i
-        LEFT JOIN item_prices ip ON i.id = ip.item_id
+        LEFT JOIN prices.item_prices ip ON i.id = ip.item_id
         WHERE i.id = ?
     };
     return $self->dbh->selectrow_hashref($sql, undef, $id);
@@ -304,7 +434,7 @@ sub search_items {
     my $sql = q{
         SELECT i.*, ip.high_price, ip.low_price
         FROM items i
-        LEFT JOIN item_prices ip ON i.id = ip.item_id
+        LEFT JOIN prices.item_prices ip ON i.id = ip.item_id
         WHERE i.name LIKE ?
         ORDER BY i.name
         LIMIT ?
@@ -313,7 +443,7 @@ sub search_items {
 }
 
 # =====================================
-# Price methods
+# Price methods (write to prices_dbh)
 # =====================================
 
 sub upsert_price {
@@ -333,7 +463,7 @@ sub upsert_price {
             low_volume = COALESCE(excluded.low_volume, item_prices.low_volume),
             updated_at = strftime('%s', 'now')
     };
-    $self->dbh->do($sql, undef,
+    $self->prices_dbh->do($sql, undef,
         $item_id,
         $price_data->{high},
         $price_data->{highTime},
@@ -348,13 +478,13 @@ sub upsert_price {
 
 sub bulk_upsert_prices {
     my ($self, $prices) = @_;
-    my $dbh = $self->dbh;
+    my $prices_dbh = $self->prices_dbh;
 
-    # Get set of known item IDs to avoid foreign key violations
-    my $known_ids = $dbh->selectcol_arrayref('SELECT id FROM items');
+    # Get set of known item IDs from main db to avoid orphan prices
+    my $known_ids = $self->dbh->selectcol_arrayref('SELECT id FROM items');
     my %known = map { $_ => 1 } @$known_ids;
 
-    $dbh->begin_work;
+    $prices_dbh->begin_work;
     eval {
         my $sql = q{
             INSERT INTO item_prices (item_id, high_price, high_time, low_price, low_time, updated_at)
@@ -366,7 +496,7 @@ sub bulk_upsert_prices {
                 low_time = COALESCE(excluded.low_time, item_prices.low_time),
                 updated_at = strftime('%s', 'now')
         };
-        my $sth = $dbh->prepare($sql);
+        my $sth = $prices_dbh->prepare($sql);
 
         for my $item_id (keys %$prices) {
             next unless $known{$item_id};  # Skip unknown items
@@ -374,19 +504,19 @@ sub bulk_upsert_prices {
             my $p = $prices->{$item_id};
             $sth->execute($item_id, $p->{high}, $p->{highTime}, $p->{low}, $p->{lowTime});
         }
-        $dbh->commit;
+        $prices_dbh->commit;
     };
     if ($@) {
-        $dbh->rollback;
+        $prices_dbh->rollback;
         die "Bulk price update failed: $@";
     }
 }
 
 sub bulk_upsert_5m_prices {
     my ($self, $prices) = @_;
-    my $dbh = $self->dbh;
+    my $prices_dbh = $self->prices_dbh;
 
-    $dbh->begin_work;
+    $prices_dbh->begin_work;
     eval {
         my $sql = q{
             UPDATE item_prices SET
@@ -397,7 +527,7 @@ sub bulk_upsert_5m_prices {
                 updated_at = strftime('%s', 'now')
             WHERE item_id = ?
         };
-        my $sth = $dbh->prepare($sql);
+        my $sth = $prices_dbh->prepare($sql);
 
         for my $item_id (keys %$prices) {
             my $p = $prices->{$item_id};
@@ -409,10 +539,10 @@ sub bulk_upsert_5m_prices {
                 $item_id
             );
         }
-        $dbh->commit;
+        $prices_dbh->commit;
     };
     if ($@) {
-        $dbh->rollback;
+        $prices_dbh->rollback;
         die "Bulk 5m price update failed: $@";
     }
 }
@@ -548,14 +678,14 @@ sub _fetch_recipe_items {
         ? ', ip.high_time, ip.low_time, iv.vol_5m_high, iv.vol_5m_low, iv.vol_4h_high, iv.vol_4h_low, iv.vol_24h_high, iv.vol_24h_low'
         : '';
     my $volume_join = $with_volumes
-        ? 'LEFT JOIN item_volumes iv ON t.item_id = iv.item_id'
+        ? 'LEFT JOIN prices.item_volumes iv ON t.item_id = iv.item_id'
         : '';
 
     my $inputs = $self->dbh->selectall_arrayref(qq{
         SELECT t.*, i.name, i.icon, ip.high_price, ip.low_price$volume_cols
         FROM $input_table t
         JOIN items i ON t.item_id = i.id
-        LEFT JOIN item_prices ip ON t.item_id = ip.item_id
+        LEFT JOIN prices.item_prices ip ON t.item_id = ip.item_id
         $volume_join
         WHERE t.recipe_id = ?
     }, { Slice => {} }, $recipe_id);
@@ -564,12 +694,50 @@ sub _fetch_recipe_items {
         SELECT t.*, i.name, i.icon, ip.high_price, ip.low_price$volume_cols
         FROM $output_table t
         JOIN items i ON t.item_id = i.id
-        LEFT JOIN item_prices ip ON t.item_id = ip.item_id
+        LEFT JOIN prices.item_prices ip ON t.item_id = ip.item_id
         $volume_join
         WHERE t.recipe_id = ?
     }, { Slice => {} }, $recipe_id);
 
     return ($inputs, $outputs);
+}
+
+# Compute profit data from inputs/outputs
+sub _compute_profit {
+    my ($self, $inputs, $outputs) = @_;
+
+    my $input_cost = 0;
+    for my $input (@$inputs) {
+        $input_cost += ($input->{high_price} // 0) * ($input->{quantity} // 1);
+    }
+
+    my $output_revenue = 0;
+    my $total_tax = 0;
+    for my $output (@$outputs) {
+        my $price = $output->{low_price} // 0;
+        my $qty = $output->{quantity} // 1;
+        my $revenue = $price * $qty;
+        $output_revenue += $revenue;
+
+        # GE tax: 2% capped at 5M per item (no tax on coins, item_id 995)
+        unless (($output->{item_id} // 0) == 995) {
+            my $tax = int($revenue * 0.02);
+            my $max_tax = 5_000_000 * $qty;
+            $total_tax += ($tax > $max_tax ? $max_tax : $tax);
+        }
+    }
+
+    my $profit = $output_revenue - $total_tax - $input_cost;
+    my $roi = $input_cost > 0 ? sprintf("%.2f", ($profit / $input_cost) * 100) : 0;
+
+    return {
+        input_cost               => $input_cost,
+        output_revenue           => $output_revenue,
+        total_tax                => $total_tax,
+        output_revenue_after_tax => $output_revenue - $total_tax,
+        profit                   => $profit,
+        roi_percent              => $roi,
+    };
 }
 
 sub get_recipe {
@@ -583,25 +751,16 @@ sub get_recipe {
 
 sub get_all_recipes {
     my ($self, $user_id, $active_only) = @_;
-    my $sql = q{
-        SELECT r.*,
-               COALESCE(profit_data.input_cost, 0) as input_cost,
-               COALESCE(profit_data.output_revenue, 0) as output_revenue,
-               COALESCE(profit_data.total_tax, 0) as total_tax,
-               COALESCE(profit_data.output_revenue_after_tax, 0) as output_revenue_after_tax,
-               COALESCE(profit_data.profit, 0) as profit,
-               COALESCE(profit_data.roi_percent, 0) as roi_percent
-        FROM recipes r
-        LEFT JOIN recipe_profits profit_data ON r.id = profit_data.id
-        WHERE r.user_id = ?
-    };
-    $sql .= ' AND r.active = 1' if $active_only;
-    $sql .= ' ORDER BY r.sort_order, r.id';
+    my $sql = 'SELECT * FROM recipes WHERE user_id = ?';
+    $sql .= ' AND active = 1' if $active_only;
+    $sql .= ' ORDER BY sort_order, id';
 
     my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $user_id);
 
     for my $recipe (@$recipes) {
         ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($recipe->{id}, 'recipe', 1);
+        my $profit = $self->_compute_profit($recipe->{inputs}, $recipe->{outputs});
+        $recipe->{$_} = $profit->{$_} for keys %$profit;
     }
 
     return $recipes;
@@ -679,13 +838,13 @@ sub get_price_stats {
             COUNT(CASE WHEN high_price IS NOT NULL THEN 1 END) as items_with_high,
             COUNT(CASE WHEN low_price IS NOT NULL THEN 1 END) as items_with_low,
             MAX(updated_at) as last_update
-        FROM item_prices
+        FROM prices.item_prices
     };
     return $self->dbh->selectrow_hashref($sql);
 }
 
 # =====================================
-# Volume methods
+# Volume methods (write to prices_dbh)
 # =====================================
 
 sub upsert_item_volumes {
@@ -703,7 +862,7 @@ sub upsert_item_volumes {
             vol_24h_low = excluded.vol_24h_low,
             updated_at = strftime('%s', 'now')
     };
-    $self->dbh->do($sql, undef,
+    $self->prices_dbh->do($sql, undef,
         $item_id,
         $volumes->{vol_5m_high} // 0,
         $volumes->{vol_5m_low} // 0,
@@ -811,24 +970,14 @@ sub get_cookbook_recipe {
 
 sub get_cookbook_recipes {
     my ($self, $cookbook_id) = @_;
-    my $sql = q{
-        SELECT pr.*,
-               COALESCE(profit_data.input_cost, 0) as input_cost,
-               COALESCE(profit_data.output_revenue, 0) as output_revenue,
-               COALESCE(profit_data.total_tax, 0) as total_tax,
-               COALESCE(profit_data.output_revenue_after_tax, 0) as output_revenue_after_tax,
-               COALESCE(profit_data.profit, 0) as profit,
-               COALESCE(profit_data.roi_percent, 0) as roi_percent
-        FROM cookbook_recipes pr
-        LEFT JOIN cookbook_recipe_profits profit_data ON pr.id = profit_data.id
-        WHERE pr.cookbook_id = ?
-        ORDER BY pr.sort_order, pr.id
-    };
+    my $sql = 'SELECT * FROM cookbook_recipes WHERE cookbook_id = ? ORDER BY sort_order, id';
 
     my $recipes = $self->dbh->selectall_arrayref($sql, { Slice => {} }, $cookbook_id);
 
     for my $recipe (@$recipes) {
         ($recipe->{inputs}, $recipe->{outputs}) = $self->_fetch_recipe_items($recipe->{id}, 'cookbook_recipe', 1);
+        my $profit = $self->_compute_profit($recipe->{inputs}, $recipe->{outputs});
+        $recipe->{$_} = $profit->{$_} for keys %$profit;
     }
 
     return $recipes;
