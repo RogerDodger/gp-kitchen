@@ -669,7 +669,7 @@ post '/cookbooks/:id/import' => sub ($c) {
         $c->flash(success => "Imported $count recipe(s) from " . $cookbook->{name});
     }
 
-    $c->redirect_to('/cook');
+    $c->redirect_to('/');
 };
 
 # =====================================
