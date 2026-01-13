@@ -499,12 +499,36 @@ sub toggle_recipe_live {
 }
 
 sub reorder_recipes {
-    my ($self, $ids) = @_;
+    my ($self, $ids, $table) = @_;
+    $table //= 'recipes';
     my $order = 0;
     for my $id (@$ids) {
-        $self->dbh->do('UPDATE recipes SET sort_order = ? WHERE id = ?',
+        $self->dbh->do("UPDATE $table SET sort_order = ? WHERE id = ?",
             undef, $order++, $id);
     }
+}
+
+sub swap_recipe_order {
+    my ($self, $ids, $id, $dir, $table) = @_;
+    $table //= 'recipes';
+
+    my ($idx) = grep { $ids->[$_] == $id } 0..$#$ids;
+    return unless defined $idx;
+
+    my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
+    return if $swap_idx < 0 || $swap_idx > $#$ids;
+
+    # For user recipes, check if both items have same live status
+    if ($table eq 'recipes') {
+        my $live_status = $self->dbh->selectall_hashref(
+            'SELECT id, live FROM recipes WHERE id IN (?, ?)',
+            'id', undef, $ids->[$idx], $ids->[$swap_idx]
+        );
+        return unless $live_status->{$ids->[$idx]}{live} == $live_status->{$ids->[$swap_idx]}{live};
+    }
+
+    @$ids[$idx, $swap_idx] = @$ids[$swap_idx, $idx];
+    $self->reorder_recipes($ids, $table);
 }
 
 sub get_recipe {
@@ -829,15 +853,6 @@ sub get_cookbook_recipes {
     }
 
     return $recipes;
-}
-
-sub reorder_cookbook_recipes {
-    my ($self, $ids) = @_;
-    my $order = 0;
-    for my $id (@$ids) {
-        $self->dbh->do('UPDATE cookbook_recipes SET sort_order = ? WHERE id = ?',
-            undef, $order++, $id);
-    }
 }
 
 # Cookbook recipe input/output management

@@ -27,78 +27,7 @@
     <div class="admin-section">
         <h2>Recipes</h2>
 
-        <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/recipes" class="new-recipe-form">
-            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-            <button type="submit" class="btn btn-primary">Add New Recipe</button>
-        </form>
-
-        % my $recipes = stash('recipes') // [];
-        % my $current_order = join(',', map { $_->{id} } @$recipes);
-        % if (@$recipes) {
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Sort</th>
-                        <th>Inputs</th>
-                        <th>Outputs</th>
-                        <th>Profit</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    % for my $recipe (@$recipes) {
-                        <tr id="recipe-<%= $recipe->{id} %>">
-                            <td class="sort-controls">
-                                <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/recipes/reorder" style="display:inline">
-                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-                                    <input type="hidden" name="order" value="<%= $current_order %>">
-                                    <input type="hidden" name="id" value="<%= $recipe->{id} %>">
-                                    <input type="hidden" name="dir" value="up">
-                                    <button type="submit" class="btn btn-small" title="Move up">&#9650;</button>
-                                </form>
-                                <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/recipes/reorder" style="display:inline">
-                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-                                    <input type="hidden" name="order" value="<%= $current_order %>">
-                                    <input type="hidden" name="id" value="<%= $recipe->{id} %>">
-                                    <input type="hidden" name="dir" value="down">
-                                    <button type="submit" class="btn btn-small" title="Move down">&#9660;</button>
-                                </form>
-                            </td>
-                            <td>
-                                % if (@{$recipe->{inputs}}) {
-                                    % for my $input (@{$recipe->{inputs}}) {
-                                        <div><%= $input->{quantity} %>x <%= $input->{name} %></div>
-                                    % }
-                                % } else {
-                                    <em>None</em>
-                                % }
-                            </td>
-                            <td>
-                                % if (@{$recipe->{outputs}}) {
-                                    % for my $output (@{$recipe->{outputs}}) {
-                                        <div><%= $output->{quantity} %>x <%= $output->{name} %></div>
-                                    % }
-                                % } else {
-                                    <em>None</em>
-                                % }
-                            </td>
-                            <td class="<%= $recipe->{profit} > 0 ? 'positive' : ($recipe->{profit} < 0 ? 'negative' : '') %>">
-                                <%= format_gp($recipe->{profit}) %>
-                            </td>
-                            <td>
-                                <a href="/cookbooks/<%= stash('cookbook')->{id} %>/recipes/<%= $recipe->{id} %>/edit" class="btn btn-small">Edit</a>
-                                <form method="post" action="/cookbooks/<%= stash('cookbook')->{id} %>/recipes/<%= $recipe->{id} %>/delete" style="display:inline" onsubmit="return confirm('Delete?')">
-                                    <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-                                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    % }
-                </tbody>
-            </table>
-        % } else {
-            <p class="empty-state">No recipes yet. Add one above!</p>
-        % }
+        %= include 'partials/_recipe_edit_table', recipe_base_url => '/cookbooks/' . stash('cookbook')->{id} . '/recipes', show_status_controls => 0
     </div>
 
     <div class="admin-section danger-zone">

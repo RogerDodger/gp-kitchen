@@ -461,7 +461,7 @@ group {
     };
 
     # Reorder recipes
-    post '/reorder' => sub ($c) {
+    post '/recipe/reorder' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -477,23 +477,7 @@ group {
                     unless $schema->user_owns_recipe($user->{id}, $recipe_id);
             }
 
-            my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
-            if (defined $idx) {
-                my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
-                if ($swap_idx >= 0 && $swap_idx <= $#ids) {
-                    # Check if both items have same live status
-                    my $dbh = $schema->dbh;
-                    my $live_status = $dbh->selectall_hashref(
-                        'SELECT id, live FROM recipes WHERE id IN (?, ?)',
-                        'id', undef, $ids[$idx], $ids[$swap_idx]
-                    );
-                    my $same_live = $live_status->{$ids[$idx]}{live} == $live_status->{$ids[$swap_idx]}{live};
-                    if ($same_live) {
-                        @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
-                        $schema->reorder_recipes(\@ids);
-                    }
-                }
-            }
+            $schema->swap_recipe_order(\@ids, $id, $dir, 'recipes');
         }
         $c->flash(restore_scroll => 1);
         $c->redirect_to('/cook');
@@ -746,22 +730,24 @@ group {
         $c->redirect_to('/cookbooks');
     };
 
-    # Add recipe to cookbook
-    post '/:cookbook_id/recipes' => sub ($c) {
-        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
-
-        my $cookbook_id = $c->param('cookbook_id');
-        my $id = $schema->create_cookbook_recipe($cookbook_id);
-        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$id/edit");
-    };
-
-    # Edit cookbook recipe
-    get '/:cookbook_id/recipes/:recipe_id/edit' => sub ($c) {
+    # Edit cookbook recipe (or blank for new)
+    get '/:cookbook_id/recipes/:recipe_id' => sub ($c) {
         my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
 
         my $cookbook = $schema->get_cookbook($cookbook_id);
         return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
+
+        # Handle 'blank' as a special case for new recipe
+        if ($recipe_id eq 'blank') {
+            my $recipe = {
+                id => 'blank',
+                inputs => [],
+                outputs => [],
+            };
+            $c->stash(cookbook => $cookbook, recipe => $recipe);
+            return $c->render(template => 'cookbooks/edit_recipe');
+        }
 
         return $c->render(text => 'Not authorized', status => 403)
             unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
@@ -794,19 +780,27 @@ group {
 
         my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        # Create recipe on first input if blank
+        if ($recipe_id eq 'blank') {
+            return $c->redirect_to("/cookbooks/$cookbook_id/recipes/blank") unless $item_id;
+            $recipe_id = $schema->create_cookbook_recipe($cookbook_id);
+            $schema->add_cookbook_recipe_input($recipe_id, $item_id, $quantity);
+            $c->flash(restore_scroll => 1);
+            return $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
+        }
 
         return $c->render(text => 'Not authorized', status => 403)
             unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
-
-        my $item_id = $c->param('item_id');
-        my $quantity = $c->param('quantity') // 1;
 
         if ($item_id) {
             $schema->add_cookbook_recipe_input($recipe_id, $item_id, $quantity);
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
     };
 
     # Remove input from cookbook recipe
@@ -822,7 +816,7 @@ group {
         my $input_id = $c->param('input_id');
         $schema->remove_cookbook_recipe_input($input_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
     };
 
     # Add output to cookbook recipe
@@ -831,19 +825,27 @@ group {
 
         my $cookbook_id = $c->param('cookbook_id');
         my $recipe_id = $c->param('recipe_id');
+        my $item_id = $c->param('item_id');
+        my $quantity = $c->param('quantity') // 1;
+
+        # Create recipe on first output if blank
+        if ($recipe_id eq 'blank') {
+            return $c->redirect_to("/cookbooks/$cookbook_id/recipes/blank") unless $item_id;
+            $recipe_id = $schema->create_cookbook_recipe($cookbook_id);
+            $schema->add_cookbook_recipe_output($recipe_id, $item_id, $quantity);
+            $c->flash(restore_scroll => 1);
+            return $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
+        }
 
         return $c->render(text => 'Not authorized', status => 403)
             unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
-
-        my $item_id = $c->param('item_id');
-        my $quantity = $c->param('quantity') // 1;
 
         if ($item_id) {
             $schema->add_cookbook_recipe_output($recipe_id, $item_id, $quantity);
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
     };
 
     # Remove output from cookbook recipe
@@ -859,7 +861,7 @@ group {
         my $output_id = $c->param('output_id');
         $schema->remove_cookbook_recipe_output($output_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id/edit");
+        $c->redirect_to("/cookbooks/$cookbook_id/recipes/$recipe_id");
     };
 
     # Reorder cookbook recipes
@@ -879,14 +881,7 @@ group {
                     unless $schema->cookbook_owns_recipe($cookbook_id, $recipe_id);
             }
 
-            my ($idx) = grep { $ids[$_] == $id } 0..$#ids;
-            if (defined $idx) {
-                my $swap_idx = $dir eq 'up' ? $idx - 1 : $idx + 1;
-                if ($swap_idx >= 0 && $swap_idx <= $#ids) {
-                    @ids[$idx, $swap_idx] = @ids[$swap_idx, $idx];
-                    $schema->reorder_cookbook_recipes(\@ids);
-                }
-            }
+            $schema->swap_recipe_order(\@ids, $id, $dir, 'cookbook_recipes');
         }
         $c->flash(restore_scroll => 1);
         $c->redirect_to("/cookbooks/$cookbook_id/recipes");
