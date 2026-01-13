@@ -292,6 +292,8 @@ get '/item/:id' => sub ($c) {
 # =====================================
 
 get '/login' => sub ($c) {
+    my $user = $c->current_user;
+    return $c->redirect_to('/') if $user && !$user->{is_guest};
     $c->render(template => 'auth/login');
 };
 
@@ -316,6 +318,8 @@ get '/logout' => sub ($c) {
 };
 
 get '/register' => sub ($c) {
+    my $user = $c->current_user;
+    return $c->redirect_to('/') if $user && !$user->{is_guest};
     $c->render(template => 'auth/register');
 };
 
@@ -952,9 +956,15 @@ __DATA__
         <button type="submit" class="btn btn-primary">Login</button>
     </form>
 
-    <p style="margin-top: 1rem; text-align: center;">
-        Don't have an account? <a href="/register">Register</a>
-    </p>
+    % if (is_guest) {
+        <div class="alert alert-warning" style="margin-top: 1rem;">
+            Warning: Logging in will destroy your guest account.
+        </div>
+    % } else {
+        <p style="margin-top: 1rem; text-align: center;">
+            Don't have an account? <a href="/register">Register</a>
+        </p>
+    % }
 </div>
 
 @@ auth/register.html.ep

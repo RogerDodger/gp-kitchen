@@ -14,18 +14,14 @@
             <a href="/cookbooks">Cookbooks</a>
         </div>
         <div class="nav-right">
-            % if (is_authenticated) {
+            % if (is_authenticated && !is_guest) {
                 % if (is_admin && is_dev_mode) {
                     <form method="post" action="/admin/update-prices" style="display:inline">
                         <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                         <button type="submit" class="btn btn-small">Update Prices</button>
                     </form>
                 % }
-                % if (is_guest) {
-                    <a href="/register" class="btn btn-small btn-primary">Save Account</a>
-                % } else {
-                    <span class="nav-user"><%= current_user->{username} %></span>
-                % }
+                <span class="nav-user"><%= current_user->{username} %></span>
                 <a href="/logout">Logout</a>
             % } else {
                 <a href="/login">Login</a>
@@ -35,7 +31,9 @@
 
     % if (is_guest && current_user) {
         <div class="guest-banner">
-            You're using a guest account. <a href="/register">Save your account</a> to not lose your dashboard.
+            You're using a guest account.
+            <a href="/register">Save your account</a> to keep your dashboard, or
+            <a href="/logout">destroy it</a> to start over.
         </div>
     % }
 

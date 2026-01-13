@@ -244,6 +244,12 @@ select:focus {
     border-left: 3px solid var(--negative);
 }
 
+.alert-warning {
+    background: #fef3c7;
+    color: #92400e;
+    border-left: 3px solid var(--gold);
+}
+
 /* Dashboard */
 .dashboard h1 {
     margin-bottom: 1rem;
@@ -479,6 +485,16 @@ a.item-name:hover {
 .empty-state p {
     margin-bottom: 1rem;
     color: var(--text-secondary);
+}
+
+/* Login */
+.login-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.login-container h1 {
+    margin-bottom: 1.5rem;
 }
 
 /* Admin */
