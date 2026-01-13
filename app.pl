@@ -303,7 +303,7 @@ post '/login' => sub ($c) {
     if ($user) {
         $c->session(user_id => $user->{id});
         $schema->update_user_last_active($user->{id});
-        return $c->redirect_to('/recipes');
+        return $c->redirect_to('/cook');
     }
 
     $c->flash(error => 'Invalid username or password');
@@ -353,7 +353,7 @@ post '/register' => sub ($c) {
             return $c->redirect_to('/register');
         }
         $c->flash(success => 'Account saved! You can now log in from any device.');
-        return $c->redirect_to('/recipes');
+        return $c->redirect_to('/cook');
     }
 
     # New registration
@@ -369,7 +369,7 @@ post '/register' => sub ($c) {
     );
     $c->session(user_id => $user_id);
     $c->flash(success => 'Account created!');
-    $c->redirect_to('/recipes');
+    $c->redirect_to('/cook');
 };
 
 # =====================================
@@ -377,7 +377,7 @@ post '/register' => sub ($c) {
 # =====================================
 
 group {
-    under '/recipes' => sub ($c) {
+    under '/cook' => sub ($c) {
         # Ensure user exists (create guest if needed for modifying actions)
         my $user = $c->current_user;
         if (!$user && $c->req->method eq 'POST') {
@@ -399,20 +399,20 @@ group {
         my $recipes = $schema->get_all_recipes($user->{id}, 0);  # All
         my $stats = $schema->get_price_stats;
         $c->stash(recipes => $recipes, stats => $stats);
-        $c->render(template => 'admin/index');
+        $c->render(template => 'cook/index');
     };
 
     # Create new recipe
-    post '/' => sub ($c) {
+    post '/recipe' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
         my $id = $schema->create_recipe($user->{id});
-        $c->redirect_to("/recipes/$id/edit");
+        $c->redirect_to("/cook/recipe/$id");
     };
 
     # Edit recipe form
-    get '/:id/edit' => sub ($c) {
+    get '/recipe/:id' => sub ($c) {
         my $user = $c->current_user;
         return $c->redirect_to('/login') unless $user;
 
@@ -424,11 +424,11 @@ group {
         return $c->render(text => 'Not found', status => 404) unless $recipe;
 
         $c->stash(recipe => $recipe);
-        $c->render(template => 'admin/edit_recipe');
+        $c->render(template => 'cook/recipe');
     };
 
     # Toggle recipe active status
-    post '/:id/toggle' => sub ($c) {
+    post '/recipe/:id/toggle' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -438,11 +438,11 @@ group {
 
         $schema->toggle_recipe_active($id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/recipes');
+        $c->redirect_to('/cook');
     };
 
     # Toggle recipe live status
-    post '/:id/toggle-live' => sub ($c) {
+    post '/recipe/:id/toggle-live' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -452,7 +452,7 @@ group {
 
         $schema->toggle_recipe_live($id, $user->{id});
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/recipes');
+        $c->redirect_to('/cook');
     };
 
     # Reorder recipes
@@ -491,11 +491,11 @@ group {
             }
         }
         $c->flash(restore_scroll => 1);
-        $c->redirect_to('/recipes');
+        $c->redirect_to('/cook');
     };
 
     # Delete recipe
-    post '/:id/delete' => sub ($c) {
+    post '/recipe/:id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -505,11 +505,11 @@ group {
 
         $schema->delete_recipe($id);
         $c->flash(success => 'Recipe deleted');
-        $c->redirect_to('/recipes');
+        $c->redirect_to('/cook');
     };
 
     # Add input to recipe
-    post '/:id/inputs' => sub ($c) {
+    post '/recipe/:id/inputs' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -525,11 +525,11 @@ group {
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/recipes/$recipe_id/edit");
+        $c->redirect_to("/cook/recipe/$recipe_id");
     };
 
     # Remove input from recipe
-    post '/:id/inputs/:input_id/delete' => sub ($c) {
+    post '/recipe/:id/inputs/:input_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -540,11 +540,11 @@ group {
         my $input_id = $c->param('input_id');
         $schema->remove_recipe_input($input_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/recipes/$recipe_id/edit");
+        $c->redirect_to("/cook/recipe/$recipe_id");
     };
 
     # Add output to recipe
-    post '/:id/outputs' => sub ($c) {
+    post '/recipe/:id/outputs' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -560,11 +560,11 @@ group {
         }
 
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/recipes/$recipe_id/edit");
+        $c->redirect_to("/cook/recipe/$recipe_id");
     };
 
     # Remove output from recipe
-    post '/:id/outputs/:output_id/delete' => sub ($c) {
+    post '/recipe/:id/outputs/:output_id/delete' => sub ($c) {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $user = $c->current_user;
@@ -575,7 +575,7 @@ group {
         my $output_id = $c->param('output_id');
         $schema->remove_recipe_output($output_id);
         $c->flash(restore_scroll => 1);
-        $c->redirect_to("/recipes/$recipe_id/edit");
+        $c->redirect_to("/cook/recipe/$recipe_id");
     };
 };
 
@@ -642,7 +642,7 @@ post '/presets/:id/import' => sub ($c) {
         $c->flash(success => "Imported $count recipe(s) from " . $preset->{name});
     }
 
-    $c->redirect_to('/recipes');
+    $c->redirect_to('/cook');
 };
 
 # =====================================
@@ -897,7 +897,7 @@ group {
 
         my $deleted = $schema->cleanup_inactive_guests(30);
         $c->flash(success => 'Inactive guest accounts cleaned up');
-        $c->redirect_to('/recipes');
+        $c->redirect_to('/cook');
     };
 };
 

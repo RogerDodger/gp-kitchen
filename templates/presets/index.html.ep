@@ -50,9 +50,9 @@
                         <a href="/presets/<%= $preset->{id} %>/import" class="btn btn-primary btn-small">Import</a>
                         <span class="preset-imports">
                             % if ($preset->{import_count} == 1) {
-                                1 user has
+                                1 person has
                             % } else {
-                                <%= $preset->{import_count} %> users have
+                                <%= $preset->{import_count} %> people have
                             % }
                             imported from this preset
                         </span>

@@ -11,7 +11,7 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <a href="/recipes" class="btn btn-secondary">&larr; Back to Recipes</a>
+    <a href="/cook" class="btn btn-secondary">&larr; Back to Recipes</a>
 
     % my $recipe = stash('recipe');
 
@@ -42,7 +42,7 @@
                             <td><%= format_gp($input->{high_price}) %></td>
                             <td><%= format_gp(($input->{high_price} // 0) * $input->{quantity}) %></td>
                             <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/inputs/<%= $input->{id} %>/delete"
+                                <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/inputs/<%= $input->{id} %>/delete"
                                       style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Remove</button>
@@ -58,7 +58,7 @@
 
         <div class="add-item-form">
             <h3>Add Input</h3>
-            <form method="post" action="/recipes/<%= $recipe->{id} %>/inputs" id="add-input-form">
+            <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/inputs" id="add-input-form">
                 <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                 <div class="item-search-container">
                     <input type="text" id="input-search" placeholder="Search for item..." autocomplete="off">
@@ -100,7 +100,7 @@
                             <td><%= format_gp($output->{low_price}) %></td>
                             <td><%= format_gp($total - $tax) %> <small>(tax: <%= format_gp($tax) %>)</small></td>
                             <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/outputs/<%= $output->{id} %>/delete"
+                                <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/outputs/<%= $output->{id} %>/delete"
                                       style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Remove</button>
@@ -116,7 +116,7 @@
 
         <div class="add-item-form">
             <h3>Add Output</h3>
-            <form method="post" action="/recipes/<%= $recipe->{id} %>/outputs" id="add-output-form">
+            <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/outputs" id="add-output-form">
                 <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                 <div class="item-search-container">
                     <input type="text" id="output-search" placeholder="Search for item..." autocomplete="off">

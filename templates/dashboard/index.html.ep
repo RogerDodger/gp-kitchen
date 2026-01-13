@@ -27,13 +27,13 @@
     % } else {
         <div class="empty-state">
             <p>Your dashboard is empty.</p>
-            <p>Browse <a href="/presets">presets</a> to jumpstart it, or create your own <a href="/recipes">recipes</a>.</p>
+            <p>Browse <a href="/presets">presets</a> to jumpstart it, or create your own <a href="/cook">recipes</a>.</p>
         </div>
     % }
 
     % if (is_authenticated) {
         <div class="dashboard-actions">
-            <a href="/recipes" class="btn btn-secondary">Edit dashboard</a>
+            <a href="/cook" class="btn btn-secondary">Edit dashboard</a>
         </div>
     % }
 </div>

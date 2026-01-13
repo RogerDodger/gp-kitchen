@@ -14,7 +14,7 @@
     <div class="admin-section">
         <h2>Recipes</h2>
 
-        <form method="post" action="/recipes" class="new-recipe-form">
+        <form method="post" action="/cook/recipe" class="new-recipe-form">
             <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
             <button type="submit" class="btn btn-primary">Add New Recipe</button>
         </form>
@@ -37,14 +37,14 @@
                     % for my $recipe (@$recipes) {
                         <tr id="recipe-<%= $recipe->{id} %>">
                             <td class="sort-controls">
-                                <form method="post" action="/recipes/reorder" style="display:inline">
+                                <form method="post" action="/cook/reorder" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <input type="hidden" name="order" value="<%= $current_order %>">
                                     <input type="hidden" name="id" value="<%= $recipe->{id} %>">
                                     <input type="hidden" name="dir" value="up">
                                     <button type="submit" class="btn btn-small" title="Move up">&#9650;</button>
                                 </form>
-                                <form method="post" action="/recipes/reorder" style="display:inline">
+                                <form method="post" action="/cook/reorder" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <input type="hidden" name="order" value="<%= $current_order %>">
                                     <input type="hidden" name="id" value="<%= $recipe->{id} %>">
@@ -71,7 +71,7 @@
                                 % }
                             </td>
                             <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/toggle-live" style="display:inline">
+                                <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/toggle-live" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small <%= $recipe->{live} ? 'btn-live' : '' %>">
                                         <%= $recipe->{live} ? 'Live' : '-' %>
@@ -79,7 +79,7 @@
                                 </form>
                             </td>
                             <td>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/toggle" style="display:inline">
+                                <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/toggle" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small <%= $recipe->{active} ? 'btn-active' : '' %>">
                                         <%= $recipe->{active} ? 'Active' : 'Inactive' %>
@@ -87,8 +87,8 @@
                                 </form>
                             </td>
                             <td>
-                                <a href="/recipes/<%= $recipe->{id} %>/edit" class="btn btn-small">Edit</a>
-                                <form method="post" action="/recipes/<%= $recipe->{id} %>/delete" style="display:inline" onsubmit="return confirm('Delete?')">
+                                <a href="/cook/recipe/<%= $recipe->{id} %>" class="btn btn-small">Edit</a>
+                                <form method="post" action="/cook/recipe/<%= $recipe->{id} %>/delete" style="display:inline" onsubmit="return confirm('Delete?')">
                                     <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
                                     <button type="submit" class="btn btn-small btn-danger">Delete</button>
                                 </form>
