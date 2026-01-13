@@ -691,7 +691,6 @@ group {
         return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
 
         my $name = $c->param('name') // '';
-        my $description = $c->param('description') // '';
 
         if (length($name) < 1) {
             $c->flash(error => 'Name is required');
@@ -699,8 +698,18 @@ group {
         }
 
         my $user = $c->current_user;
-        my $id = $schema->create_cookbook($name, $description, $user->{id});
+        my $id = $schema->create_cookbook($name, $user->{id});
         $c->redirect_to("/cookbooks/$id/recipes");
+    };
+
+    # Edit cookbooks list
+    get '/edit' => sub ($c) {
+        my $cookbooks = $schema->get_all_cookbooks;
+        for my $cookbook (@$cookbooks) {
+            $cookbook->{total_recipes} = scalar @{$schema->get_cookbook_recipes($cookbook->{id})};
+        }
+        $c->stash(cookbooks => $cookbooks);
+        $c->render(template => 'cookbooks/edit');
     };
 
     # Edit cookbook recipes
@@ -721,9 +730,8 @@ group {
 
         my $cookbook_id = $c->param('cookbook_id');
         my $name = $c->param('name') // '';
-        my $description = $c->param('description') // '';
 
-        $schema->update_cookbook($cookbook_id, $name, $description);
+        $schema->update_cookbook($cookbook_id, $name);
         $c->flash(success => 'Cookbook updated');
         $c->redirect_to("/cookbooks/$cookbook_id/recipes");
     };

@@ -5,12 +5,6 @@
     <h1>Cookbooks</h1>
     <p class="page-description">Curated recipe collections. Import them to your dashboard to jumpstart it.</p>
 
-    % if (is_admin) {
-        <div class="admin-actions" style="margin-bottom: 1rem;">
-            <a href="/cookbooks/new" class="btn btn-primary">Create New Cookbook</a>
-        </div>
-    % }
-
     %= include 'partials/_price_vol_toggles'
 
     % my $cookbooks = stash('cookbooks') // [];
@@ -19,9 +13,6 @@
             <div class="cookbook-section">
                 <div class="cookbook-section-header">
                     <h2><%= $cookbook->{name} %></h2>
-                    % if (is_admin) {
-                        <a href="/cookbooks/<%= $cookbook->{id} %>/recipes" class="btn btn-secondary btn-small">Edit</a>
-                    % }
                     <span class="cookbook-recipe-count"><%= $cookbook->{total_recipes} %> recipes</span>
                 </div>
 
@@ -66,9 +57,13 @@
     % } else {
         <div class="empty-state">
             <p>No cookbooks available yet.</p>
-            % if (is_admin) {
-                <a href="/cookbooks/new" class="btn btn-primary">Create the first cookbook</a>
-            % }
+        </div>
+    % }
+
+    % if (is_admin) {
+        <div class="admin-actions" style="margin-top: 2rem;">
+            <a href="/cookbooks/new" class="btn btn-primary">Create</a>
+            <a href="/cookbooks/edit" class="btn btn-secondary">Edit</a>
         </div>
     % }
 </div>

@@ -19,7 +19,6 @@
             <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
             <div class="form-row">
                 <input type="text" name="name" value="<%= stash('cookbook')->{name} %>" required placeholder="Name">
-                <input type="text" name="description" value="<%= stash('cookbook')->{description} // '' %>" placeholder="Description">
                 <button type="submit" class="btn btn-small">Update</button>
             </div>
         </form>

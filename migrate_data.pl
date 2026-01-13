@@ -166,9 +166,9 @@ sub create_cookbook {
 
     # Create cookbook
     $dbh->do(q{
-        INSERT INTO cookbooks (name, description, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
-    }, undef, $name, '', $admin_id);
+        INSERT INTO cookbooks (name, created_by, created_at, updated_at)
+        VALUES (?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+    }, undef, $name, $admin_id);
 
     my $cookbook_id = $dbh->last_insert_id(undef, undef, 'cookbooks', 'id');
 

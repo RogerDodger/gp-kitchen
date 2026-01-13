@@ -676,21 +676,21 @@ sub upsert_item_volumes {
 # =====================================
 
 sub create_cookbook {
-    my ($self, $name, $description, $created_by) = @_;
+    my ($self, $name, $created_by) = @_;
     my $dbh = $self->dbh;
     $dbh->do(q{
-        INSERT INTO cookbooks (name, description, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
-    }, undef, $name, $description, $created_by);
+        INSERT INTO cookbooks (name, created_by, created_at, updated_at)
+        VALUES (?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+    }, undef, $name, $created_by);
     return $dbh->last_insert_id(undef, undef, 'cookbooks', 'id');
 }
 
 sub update_cookbook {
-    my ($self, $id, $name, $description) = @_;
+    my ($self, $id, $name) = @_;
     $self->dbh->do(q{
-        UPDATE cookbooks SET name = ?, description = ?, updated_at = strftime('%s', 'now')
+        UPDATE cookbooks SET name = ?, updated_at = strftime('%s', 'now')
         WHERE id = ?
-    }, undef, $name, $description, $id);
+    }, undef, $name, $id);
 }
 
 sub delete_cookbook {

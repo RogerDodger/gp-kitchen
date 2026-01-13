@@ -69,7 +69,6 @@ CREATE TABLE IF NOT EXISTS recipe_outputs (
 CREATE TABLE IF NOT EXISTS cookbooks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT,
     created_by INTEGER REFERENCES users(id),
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
