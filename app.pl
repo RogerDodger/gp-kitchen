@@ -686,16 +686,6 @@ group {
         $c->redirect_to("/cookbooks/$id/recipes");
     };
 
-    # Edit cookbooks list
-    get '/edit' => sub ($c) {
-        my $cookbooks = $schema->get_all_cookbooks;
-        for my $cookbook (@$cookbooks) {
-            $cookbook->{total_recipes} = scalar @{$schema->get_cookbook_recipes($cookbook->{id})};
-        }
-        $c->stash(cookbooks => $cookbooks);
-        $c->render(template => 'cookbooks/edit');
-    };
-
     # Edit cookbook recipes
     get '/:cookbook_id/recipes' => sub ($c) {
         my $cookbook_id = $c->param('cookbook_id');

@@ -12,7 +12,13 @@
         % for my $cookbook (@$cookbooks) {
             <div class="cookbook-section">
                 <div class="cookbook-section-header">
-                    <h2><%= $cookbook->{name} %></h2>
+                    <h2>
+                        % if (is_admin) {
+                            <a href="/cookbooks/<%= $cookbook->{id} %>/recipes"><%= $cookbook->{name} %></a>
+                        % } else {
+                            <%= $cookbook->{name} %>
+                        % }
+                    </h2>
                     <span class="cookbook-recipe-count"><%= $cookbook->{total_recipes} %> recipes</span>
                 </div>
 
@@ -62,8 +68,7 @@
 
     % if (is_admin) {
         <div class="admin-actions" style="margin-top: 2rem;">
-            <a href="/cookbooks/new" class="btn btn-primary">Create</a>
-            <a href="/cookbooks/edit" class="btn btn-secondary">Edit</a>
+            <a href="/cookbooks/new" class="btn btn-primary">Create Cookbook</a>
         </div>
     % }
 </div>
