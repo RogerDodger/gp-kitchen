@@ -1073,18 +1073,18 @@ a.item-name:hover {
 }
 
 .preset-recipes-wrapper.collapsed .preset-recipes-container {
-    max-height: 250px;
+    max-height: 280px;
     overflow: hidden;
 }
 
 .preset-recipes-wrapper.collapsed .preset-recipes-container::after {
     content: '';
     position: absolute;
-    bottom: 0;
+    bottom: 20px;
     left: 1px;
     right: 1px;
-    height: 30px;
-    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
+    height: 10px;
+    background: linear-gradient(to bottom, transparent, rgb(from var(--bg-secondary) r g b / 0.3));
     pointer-events: none;
 }
 
@@ -1105,6 +1105,16 @@ a.item-name:hover {
     background: var(--bg-tertiary);
 }
 
+.preset-recipes-wrapper.collapsed .preset-expand-btn {
+    position: relative;
+    margin-top: -20px;
+    background: linear-gradient(to bottom, rgb(from var(--bg-secondary) r g b / 0.3), var(--bg-secondary));
+}
+
+.preset-recipes-wrapper.collapsed .preset-expand-btn:hover {
+    background: linear-gradient(to bottom, rgb(from var(--bg-tertiary) r g b / 0.3), var(--bg-tertiary));
+}
+
 .preset-recipes-wrapper .recipes-grid {
     border-radius: 8px 8px 0 0;
 }
@@ -1112,7 +1122,7 @@ a.item-name:hover {
 .preset-footer {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
     margin-top: 0.25rem;
     padding: 0 0.25rem;
 }
