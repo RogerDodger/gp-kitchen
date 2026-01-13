@@ -1,8 +1,8 @@
 % layout 'default';
-% title 'My Recipes';
+% title 'Edit Dashboard';
 
 <div class="admin-dashboard">
-    <h1>My Recipes</h1>
+    <h1>Edit Dashboard</h1>
 
     % if (flash 'success') {
         <div class="alert alert-success"><%= flash 'success' %></div>
