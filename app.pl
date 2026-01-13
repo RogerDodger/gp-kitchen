@@ -203,6 +203,15 @@ app->helper(compute_recipe_modes => sub ($c, $recipe) {
 });
 
 # =====================================
+# Hooks
+# =====================================
+
+# Load price stats for all pages (used in footer)
+app->hook(before_dispatch => sub ($c) {
+    $c->stash(stats => $schema->get_price_stats);
+});
+
+# =====================================
 # Routes
 # =====================================
 
@@ -213,8 +222,7 @@ get '/' => sub ($c) {
     if ($user) {
         $recipes = $schema->get_all_recipes($user->{id}, 1);  # Active only
     }
-    my $stats = $schema->get_price_stats;
-    $c->stash(recipes => $recipes, stats => $stats);
+    $c->stash(recipes => $recipes);
     $c->render(template => 'dashboard/index');
 };
 
@@ -434,8 +442,7 @@ group {
         return $c->redirect_to('/login') unless $user;
 
         my $recipes = $schema->get_all_recipes($user->{id}, 0);  # All
-        my $stats = $schema->get_price_stats;
-        $c->stash(recipes => $recipes, stats => $stats);
+        $c->stash(recipes => $recipes);
         $c->render(template => 'cook/index');
     };
 
@@ -638,8 +645,7 @@ get '/cookbooks' => sub ($c) {
         $cookbook->{total_recipes} = scalar @$recipes;
     }
 
-    my $stats = $schema->get_price_stats;
-    $c->stash(cookbooks => $cookbooks, stats => $stats);
+    $c->stash(cookbooks => $cookbooks);
     $c->render(template => 'cookbooks/index');
 };
 
@@ -752,8 +758,7 @@ group {
         return $c->render(text => 'Cookbook not found', status => 404) unless $cookbook;
 
         my $recipes = $schema->get_cookbook_recipes($cookbook_id);
-        my $stats = $schema->get_price_stats;
-        $c->stash(cookbook => $cookbook, recipes => $recipes, stats => $stats);
+        $c->stash(cookbook => $cookbook, recipes => $recipes);
         $c->render(template => 'cookbooks/recipes');
     };
 
