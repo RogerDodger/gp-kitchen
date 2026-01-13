@@ -251,6 +251,11 @@ select:focus {
     color: #991b1b;
     border-left: 3px solid var(--negative);
 }
+.alert-info {
+    background: var(--accent-light);
+    color: #3730a3;
+    border-left: 3px solid var(--accent);
+}
 
 /* Dashboard */
 .dashboard h1 {

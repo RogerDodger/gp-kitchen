@@ -12,10 +12,7 @@
     % }
 
     <div class="admin-section">
-        <form method="post" action="/cook/recipe" class="new-recipe-form">
-            <input type="hidden" name="csrf_token" value="<%= csrf_token %>">
-            <button type="submit" class="btn btn-primary">Cook a new recipe</button>
-        </form>
+        <a href="/cook/recipe/blank" class="btn btn-primary">Cook a new recipe</a>
 
         % my $recipes = stash('recipes') // [];
         % my $current_order = join(',', map { $_->{id} } @$recipes);

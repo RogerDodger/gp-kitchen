@@ -402,21 +402,26 @@ group {
         $c->render(template => 'cook/index');
     };
 
-    # Create new recipe
-    post '/recipe' => sub ($c) {
-        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
-
-        my $user = $c->current_user;
-        my $id = $schema->create_recipe($user->{id});
-        $c->redirect_to("/cook/recipe/$id");
-    };
-
-    # Edit recipe form
+    # Edit recipe form (or blank for new)
     get '/recipe/:id' => sub ($c) {
         my $user = $c->current_user;
         return $c->redirect_to('/login') unless $user;
 
         my $id = $c->param('id');
+
+        # Handle 'blank' as a special case for new recipe
+        if ($id eq 'blank') {
+            my $recipe = {
+                id => 'blank',
+                inputs => [],
+                outputs => [],
+                active => 1,
+                live => 0,
+            };
+            $c->stash(recipe => $recipe);
+            return $c->render(template => 'cook/recipe');
+        }
+
         return $c->render(text => 'Not authorized', status => 403)
             unless $schema->user_owns_recipe($user->{id}, $id);
 
@@ -514,11 +519,20 @@ group {
 
         my $user = $c->current_user;
         my $recipe_id = $c->param('id');
-        return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
-
         my $item_id = $c->param('item_id');
         my $quantity = $c->param('quantity') // 1;
+
+        # Create recipe on first input if blank
+        if ($recipe_id eq 'blank') {
+            return $c->redirect_to('/cook/recipe/blank') unless $item_id;
+            $recipe_id = $schema->create_recipe($user->{id});
+            $schema->add_recipe_input($recipe_id, $item_id, $quantity);
+            $c->flash(restore_scroll => 1);
+            return $c->redirect_to("/cook/recipe/$recipe_id");
+        }
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
 
         if ($item_id) {
             $schema->add_recipe_input($recipe_id, $item_id, $quantity);
@@ -549,11 +563,20 @@ group {
 
         my $user = $c->current_user;
         my $recipe_id = $c->param('id');
-        return $c->render(text => 'Not authorized', status => 403)
-            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
-
         my $item_id = $c->param('item_id');
         my $quantity = $c->param('quantity') // 1;
+
+        # Create recipe on first output if blank
+        if ($recipe_id eq 'blank') {
+            return $c->redirect_to('/cook/recipe/blank') unless $item_id;
+            $recipe_id = $schema->create_recipe($user->{id});
+            $schema->add_recipe_output($recipe_id, $item_id, $quantity);
+            $c->flash(restore_scroll => 1);
+            return $c->redirect_to("/cook/recipe/$recipe_id");
+        }
+
+        return $c->render(text => 'Not authorized', status => 403)
+            unless $schema->user_owns_recipe($user->{id}, $recipe_id);
 
         if ($item_id) {
             $schema->add_recipe_output($recipe_id, $item_id, $quantity);

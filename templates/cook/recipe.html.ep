@@ -1,8 +1,9 @@
 % layout 'default';
-% title 'Edit Recipe #' . stash('recipe')->{id};
+% my $is_blank = stash('recipe')->{id} eq 'blank';
+% title $is_blank ? 'New Recipe' : 'Edit Recipe #' . stash('recipe')->{id};
 
 <div class="edit-recipe">
-    <h1>Edit Recipe #<%= stash('recipe')->{id} %></h1>
+    <h1><%= $is_blank ? 'New Recipe' : 'Edit Recipe #' . stash('recipe')->{id} %></h1>
 
     % if (flash 'success') {
         <div class="alert alert-success"><%= flash 'success' %></div>
