@@ -224,14 +224,6 @@ select:focus {
     box-shadow: 0 0 0 2px var(--accent-light);
 }
 
-.checkbox-group label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-weight: normal;
-}
-
 /* Alerts */
 .alert {
     padding: 0.75rem 1rem;
@@ -250,11 +242,6 @@ select:focus {
     background: var(--negative-light);
     color: #991b1b;
     border-left: 3px solid var(--negative);
-}
-.alert-info {
-    background: var(--accent-light);
-    color: #3730a3;
-    border-left: 3px solid var(--accent);
 }
 
 /* Dashboard */
@@ -494,55 +481,6 @@ a.item-name:hover {
     color: var(--text-secondary);
 }
 
-/* Info Box */
-.info-box {
-    background: var(--bg-secondary);
-    padding: 1rem 1.25rem;
-    border-radius: 8px;
-    margin-top: 1.5rem;
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--cyan);
-    font-size: 0.875rem;
-}
-
-.info-box h3 {
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-}
-
-.info-box ul {
-    padding-left: 1.25rem;
-    color: var(--text-secondary);
-    margin: 0;
-}
-
-.info-box li {
-    margin-bottom: 0.25rem;
-}
-
-.info-box strong {
-    color: var(--text-primary);
-}
-
-/* Login */
-.login-container {
-    max-width: 360px;
-    margin: 3rem auto;
-    padding: 2rem;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-}
-
-.login-container h1 {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-
 /* Admin */
 .admin-dashboard h1 {
     margin-bottom: 1rem;
@@ -565,16 +503,6 @@ a.item-name:hover {
     border-bottom: 1px solid var(--border);
     font-size: 1rem;
     font-weight: 600;
-}
-
-.new-conversion-form {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.new-conversion-form input {
-    flex: 1;
 }
 
 .admin-table {
@@ -604,17 +532,6 @@ a.item-name:hover {
 .actions {
     display: flex;
     gap: 0.375rem;
-}
-
-/* Edit Conversion */
-.edit-conversion {
-    max-width: 900px;
-}
-
-.edit-conversion h1 {
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
-    font-weight: 600;
 }
 
 .form-section {
@@ -1023,49 +940,10 @@ a.item-name:hover {
     align-self: center;
 }
 
-.cookbook-more {
-    margin-top: 0.5rem;
-    text-align: center;
-    padding: 0.5rem;
-    background: var(--bg-tertiary);
-    border-radius: 0 0 8px 8px;
-    font-size: 0.875rem;
-}
-
-.cookbook-more a {
-    color: var(--accent);
-}
-
-/* Cookbook View (Dashboard-like) */
-.cookbook-view h1 {
-    margin-bottom: 0.25rem;
-}
-
-.cookbook-description {
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
-
 .cookbook-recipe-count {
     display: flex;
     gap: 1rem;
     font-size: 0.875rem;
-}
-
-.already-imported {
-    color: var(--positive);
-    font-weight: 500;
-}
-
-.cookbook-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.cookbook-header-section {
-    margin-bottom: 1.5rem;
 }
 
 /* Cookbook recipes wrapper with collapse functionality */
@@ -1304,13 +1182,6 @@ a.item-name:hover {
     display: inline-block;
 }
 
-/* Info text */
-.info-text {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
-}
-
 /* Form group small text */
 .form-group small {
     display: block;
@@ -1484,10 +1355,6 @@ a.item-name:hover {
     .item-price .price-meta::before,
     .item-vol::before {
         content: " · ";
-    }
-
-    .cookbooks-grid {
-        grid-template-columns: 1fr;
     }
 }
 

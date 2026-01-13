@@ -436,25 +436,6 @@ sub create_recipe {
     return $dbh->last_insert_id(undef, undef, 'recipes', 'id');
 }
 
-sub update_recipe {
-    my ($self, $id, $data) = @_;
-    my @sets;
-    my @values;
-
-    for my $key (qw(active sort_order)) {
-        if (exists $data->{$key}) {
-            push @sets, "$key = ?";
-            push @values, $data->{$key};
-        }
-    }
-
-    return unless @sets;
-
-    push @sets, "updated_at = strftime('%s', 'now')";
-    my $sql = "UPDATE recipes SET " . join(', ', @sets) . " WHERE id = ?";
-    $self->dbh->do($sql, undef, @values, $id);
-}
-
 sub delete_recipe {
     my ($self, $id) = @_;
     $self->dbh->do('DELETE FROM recipes WHERE id = ?', undef, $id);
