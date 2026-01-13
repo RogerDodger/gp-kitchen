@@ -12,6 +12,7 @@
             <div class="grid-header">
                 <div class="hdr-input">Inputs (Buy)</div>
                 <div class="hdr-vol col-vol">Vol</div>
+                <div class="hdr-arrow"></div>
                 <div class="hdr-cost col-cost">Subtotal</div>
                 <div class="hdr-output">Outputs (Sell)</div>
                 <div class="hdr-vol col-vol">Vol</div>
@@ -31,7 +32,7 @@
         </div>
     % }
 
-    % if (is_authenticated) {
+    % if (is_authenticated && @$recipes) {
         <div class="dashboard-actions">
             <a href="/cook" class="btn btn-secondary">Edit dashboard</a>
         </div>

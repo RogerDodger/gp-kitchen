@@ -882,13 +882,15 @@ a.item-name:hover {
 /* Header columns - span name+price for inputs/outputs */
 .recipes-grid .hdr-input { grid-column: input-name / span 2; }
 .recipes-grid .hdr-cost { grid-column: cost; }
+.recipes-grid .hdr-arrow { grid-column: arrow; }
 .recipes-grid .hdr-output { grid-column: output-name / span 2; }
 .recipes-grid .hdr-revenue { grid-column: revenue; }
 .recipes-grid .hdr-tax { grid-column: tax; }
 .recipes-grid .hdr-profit { grid-column: profit; }
 .recipes-grid .hdr-roi { grid-column: roi; }
 .recipes-grid .grid-header > div:nth-child(2) { grid-column: invol; }
-.recipes-grid .grid-header > div:nth-child(5) { grid-column: outvol; }
+.recipes-grid .grid-header > div:nth-child(6) { grid-column: outvol; }
+.recipes-grid .hdr-arrow { display: none; } /* Hidden at full width */
 
 /* Column alignment */
 .recipes-grid .col-vol,
@@ -1217,7 +1219,7 @@ a.item-name:hover {
 
 /* Responsive for recipes grid */
 @media (max-width: 1400px) {
-    /* Hide subtotals, tax, profit, roi, header - shown in summary instead */
+    /* Hide subtotals, tax, profit, roi - shown in summary instead */
     .recipes-grid .col-cost,
     .recipes-grid .col-revenue,
     .recipes-grid .col-tax,
@@ -1228,8 +1230,35 @@ a.item-name:hover {
         display: none;
     }
 
+    /* Simplified header for smaller screens */
     .recipes-grid .grid-header {
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+    }
+
+    .recipes-grid .grid-header .hdr-cost,
+    .recipes-grid .grid-header .hdr-revenue,
+    .recipes-grid .grid-header .hdr-tax,
+    .recipes-grid .grid-header .hdr-profit,
+    .recipes-grid .grid-header .hdr-roi {
         display: none;
+    }
+
+    .recipes-grid .grid-header .hdr-input {
+        grid-column: input-name / span 2;
+    }
+
+    .recipes-grid .grid-header .hdr-output {
+        grid-column: output-name / span 2;
+    }
+
+    .recipes-grid .grid-header .hdr-vol {
+        text-align: right;
+    }
+
+    .recipes-grid .grid-header .hdr-arrow {
+        display: block;
     }
 
     /* Adjust grid to fewer columns - content-sized, not full width */
@@ -1332,7 +1361,16 @@ a.item-name:hover {
             [roi] auto;
     }
 
-    /* Show arrow at 900px */
+    /* Header at this breakpoint */
+    .recipes-grid .grid-header .hdr-input {
+        grid-column: input-name;
+    }
+
+    .recipes-grid .grid-header .hdr-output {
+        grid-column: output-name;
+    }
+
+    /* Show arrow at 940px */
     .recipes-grid .pair-arrow {
         display: flex;
     }
@@ -1402,6 +1440,11 @@ a.item-name:hover {
     /* Stack inputs/outputs vertically, summary below */
     .recipes-grid {
         display: block;
+    }
+
+    /* Hide header when fully stacked */
+    .recipes-grid .grid-header {
+        display: none;
     }
 
     .recipes-grid .recipe-pair {

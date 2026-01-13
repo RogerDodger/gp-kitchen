@@ -29,6 +29,7 @@
                         <div class="grid-header">
                             <div class="hdr-input">Inputs (Buy)</div>
                             <div class="hdr-vol col-vol">Vol</div>
+                            <div class="hdr-arrow"></div>
                             <div class="hdr-cost col-cost">Subtotal</div>
                             <div class="hdr-output">Outputs (Sell)</div>
                             <div class="hdr-vol col-vol">Vol</div>
@@ -43,6 +44,7 @@
                     </div>
                     </div>
                     <button type="button" class="cookbook-expand-btn">Expand</button>
+                    </div>
                     <div class="cookbook-footer">
                         <a href="/cookbooks/<%= $cookbook->{id} %>/import" class="btn btn-primary btn-small">Import</a>
                         <span class="cookbook-imports">
@@ -53,7 +55,6 @@
                             % }
                             imported from this cookbook
                         </span>
-                    </div>
                     </div>
                 % } else {
                     <p class="empty-hint">Nothing in this cookbook yet.</p>
