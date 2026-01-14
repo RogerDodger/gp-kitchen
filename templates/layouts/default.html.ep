@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %> - GP Kitchen</title>
-    <link rel="icon" type="image/png" href="https://static.runelite.net/cache/item/icon/995.png">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-left">
-            <a href="/" class="nav-brand">GP Kitchen</a>
+            <a href="/" class="nav-brand"><img src="/favicon.png" alt="" class="nav-logo">GP Kitchen</a>
             <a href="/cookbooks">Cookbooks</a>
         </div>
         <div class="nav-right">
