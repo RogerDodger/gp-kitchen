@@ -1320,6 +1320,13 @@ a.item-name:hover {
         font-weight: 600;
     }
 
+    /* Order: profit and ROI first, then inputs/outputs/tax */
+    .pair-summary .summary-profit { order: 1; }
+    .pair-summary .summary-item:last-child { order: 2; }  /* ROI */
+    .pair-summary .summary-item:nth-child(1) { order: 3; }  /* Inputs */
+    .pair-summary .summary-item:nth-child(2) { order: 4; }  /* Outputs */
+    .pair-summary .summary-item:nth-child(3) { order: 5; }  /* Tax */
+
     /* Make controls fit content to match table width */
     .dashboard-actions {
         width: fit-content;
