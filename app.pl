@@ -244,24 +244,6 @@ get '/api/items/search' => sub ($c) {
     $c->render(json => $items);
 };
 
-# API: Get item details
-get '/api/items/:id' => sub ($c) {
-    my $id = $c->param('id');
-    my $item = $schema->get_item($id);
-    return $c->render(json => { error => 'Item not found' }, status => 404) unless $item;
-    $c->render(json => $item);
-};
-
-# API: Get all recipes (for dashboard refresh)
-get '/api/recipes' => sub ($c) {
-    my $user = $c->current_user;
-    return $c->render(json => []) unless $user;
-
-    my $active_only = $c->param('active') // 1;
-    my $recipes = $schema->get_all_recipes($user->{id}, $active_only);
-    $c->render(json => $recipes);
-};
-
 # API: Get price history from OSRS Wiki
 get '/api/items/:id/history' => sub ($c) {
     my $id = $c->param('id');
@@ -983,15 +965,6 @@ group {
             $c->flash(error => "Price update failed: $@");
         }
         $c->redirect_to($c->req->headers->referrer // '/');
-    };
-
-    # Cleanup inactive guest accounts (30+ days)
-    post '/cleanup-guests' => sub ($c) {
-        return $c->render(text => 'CSRF check failed', status => 403) unless $c->csrf_check;
-
-        my $deleted = $schema->cleanup_inactive_guests(30);
-        $c->flash(success => 'Inactive guest accounts cleaned up');
-        $c->redirect_to('/cook');
     };
 };
 

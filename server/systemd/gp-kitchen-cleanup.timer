@@ -1,0 +1,12 @@
+[Unit]
+Description=GP Kitchen Guest Cleanup Timer
+Requires=gp-kitchen-cleanup.service
+
+[Timer]
+# Run daily at 4am
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -404,12 +404,21 @@ sub update_password {
 }
 
 sub cleanup_inactive_guests {
-    my ($self, $days) = @_;
+    my ($self, $days, $dry_run) = @_;
     $days //= 30;
     my $cutoff = time() - ($days * 86400);
-    $self->dbh->do(q{
+
+    if ($dry_run) {
+        return $self->dbh->selectrow_array(
+            "SELECT COUNT(*) FROM users WHERE is_guest = 1 AND last_active < ?",
+            undef, $cutoff
+        );
+    }
+
+    my $sth = $self->dbh->do(q{
         DELETE FROM users WHERE is_guest = 1 AND last_active < ?
     }, undef, $cutoff);
+    return $sth;
 }
 
 # =====================================

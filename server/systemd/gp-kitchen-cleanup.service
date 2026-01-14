@@ -1,0 +1,23 @@
+[Unit]
+Description=GP Kitchen Guest Cleanup
+After=network.target
+
+[Service]
+Type=oneshot
+User=cameron
+Group=cameron
+WorkingDirectory=/home/cameron/gp-kitchen
+ExecStart=/usr/bin/perl /home/cameron/gp-kitchen/cleanup_guests.pl --days=30
+
+# Environment
+Environment=GP_KITCHEN_CONFIG=/home/cameron/gp-kitchen/config.yml
+Environment=PERL5LIB=/home/cameron/perl5/lib/perl5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gp-kitchen-cleanup
