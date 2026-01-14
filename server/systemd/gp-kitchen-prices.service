@@ -1,0 +1,28 @@
+[Unit]
+Description=GP Kitchen Price Updater Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=cameron
+Group=cameron
+WorkingDirectory=/home/cameron/gp-kitchen
+ExecStart=/usr/bin/perl /home/cameron/gp-kitchen/update_prices.pl --daemon
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=GP_KITCHEN_CONFIG=/home/cameron/gp-kitchen/config.yml
+Environment=PERL5LIB=/home/cameron/perl5/lib/perl5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gp-kitchen-prices
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+[Unit]
+Description=GP Kitchen Web Application
+After=network.target
+
+[Service]
+Type=forking
+User=cameron
+Group=cameron
+WorkingDirectory=/home/cameron/gp-kitchen
+PIDFile=/home/cameron/gp-kitchen/hypnotoad.pid
+ExecStart=/usr/local/bin/hypnotoad /home/cameron/gp-kitchen/app.pl
+ExecReload=/usr/local/bin/hypnotoad /home/cameron/gp-kitchen/app.pl
+ExecStop=/usr/local/bin/hypnotoad -s /home/cameron/gp-kitchen/app.pl
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment=GP_KITCHEN_CONFIG=/home/cameron/gp-kitchen/config.yml
+Environment=MOJO_MODE=production
+Environment=PERL5LIB=/home/cameron/perl5/lib/perl5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

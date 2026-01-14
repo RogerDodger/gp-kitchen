@@ -38,6 +38,7 @@ app->config(hypnotoad => {
     workers => 8,
     clients => 100,
     accepts => 10000,
+    proxy   => 1,  # Trust X-Forwarded-* headers from nginx
 });
 
 # Static files and templates
