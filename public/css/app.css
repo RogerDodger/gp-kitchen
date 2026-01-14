@@ -333,6 +333,46 @@ select:focus {
     color: var(--text-primary);
 }
 
+/* Sortable headers */
+.grid-header .sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.grid-header .sortable:hover {
+    color: var(--text-accent);
+}
+
+.grid-header .sortable::after {
+    content: '';
+    display: inline-block;
+    margin-left: 0.25rem;
+    opacity: 0.3;
+}
+
+.grid-header .sortable.sort-asc::after {
+    content: '▲';
+    opacity: 1;
+}
+
+.grid-header .sortable.sort-desc::after {
+    content: '▼';
+    opacity: 1;
+}
+
+/* Summary label sort indicators */
+.summary-label.sortable:hover {
+    color: var(--text-accent);
+}
+
+.summary-label.sortable.sort-asc::after {
+    content: ' ▲';
+}
+
+.summary-label.sortable.sort-desc::after {
+    content: ' ▼';
+}
+
 /* Header column alignment */
 .grid-header .col-vol,
 .grid-header .col-cost,

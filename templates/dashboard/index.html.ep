@@ -10,16 +10,16 @@
     % if (@$recipes) {
         <div class="recipes-grid">
             <div class="grid-header">
-                <div class="hdr-input">Inputs (Buy)</div>
-                <div class="hdr-vol col-vol">Vol</div>
+                <div class="hdr-input sortable" data-sort="input-name" data-sort-type="text">Inputs (Buy)</div>
+                <div class="hdr-vol col-vol sortable" data-sort="invol" data-sort-type="vol">Vol</div>
                 <div class="hdr-arrow"></div>
-                <div class="hdr-cost col-cost">Subtotal</div>
-                <div class="hdr-output">Outputs (Sell)</div>
-                <div class="hdr-vol col-vol">Vol</div>
-                <div class="hdr-revenue col-revenue">Subtotal</div>
-                <div class="hdr-tax col-tax">Tax</div>
-                <div class="hdr-profit col-profit">Profit</div>
-                <div class="hdr-roi col-roi">ROI</div>
+                <div class="hdr-cost col-cost sortable" data-sort="cost" data-sort-type="number">Subtotal</div>
+                <div class="hdr-output sortable" data-sort="output-name" data-sort-type="text">Outputs (Sell)</div>
+                <div class="hdr-vol col-vol sortable" data-sort="outvol" data-sort-type="vol">Vol</div>
+                <div class="hdr-revenue col-revenue sortable" data-sort="revenue" data-sort-type="number">Subtotal</div>
+                <div class="hdr-tax col-tax sortable" data-sort="tax" data-sort-type="number">Tax</div>
+                <div class="hdr-profit col-profit sortable" data-sort="profit" data-sort-type="number">Profit</div>
+                <div class="hdr-roi col-roi sortable" data-sort="roi" data-sort-type="number">ROI</div>
             </div>
             % for my $recipe (@$recipes) {
                 %= include 'partials/_recipe_pair', recipe => $recipe

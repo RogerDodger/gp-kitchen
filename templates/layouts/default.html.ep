@@ -71,6 +71,109 @@
         setTimeout(function() {
             location.reload();
         }, 300000);
+
+        // Grid sorting
+        (function() {
+            function sortGrid(grid, sortKey, sortType, toggleDirection) {
+                if (!grid) return;
+
+                const header = grid.querySelector(`.sortable[data-sort="${sortKey}"]`);
+                const isAsc = toggleDirection && header && header.classList.contains('sort-asc');
+
+                // Get current settings from dashboard
+                const dashboard = document.querySelector('.dashboard');
+                const mode = dashboard ? dashboard.dataset.mode : 'patient';
+                const vol = dashboard ? dashboard.dataset.vol : '4h';
+
+                // Build data attribute name
+                let dataAttr;
+                if (sortType === 'text') {
+                    dataAttr = `data-${sortKey}`;
+                } else if (sortType === 'vol') {
+                    dataAttr = `data-${sortKey}-${mode}-${vol}`;
+                } else {
+                    dataAttr = `data-${sortKey}-${mode}`;
+                }
+
+                // Get all recipe pairs
+                const pairs = Array.from(grid.querySelectorAll('.recipe-pair'));
+                if (pairs.length === 0) return;
+
+                // Sort
+                pairs.sort((a, b) => {
+                    let aVal = a.getAttribute(dataAttr) || '';
+                    let bVal = b.getAttribute(dataAttr) || '';
+
+                    if (sortType === 'text') {
+                        return isAsc
+                            ? aVal.localeCompare(bVal)
+                            : bVal.localeCompare(aVal);
+                    } else {
+                        aVal = parseFloat(aVal) || 0;
+                        bVal = parseFloat(bVal) || 0;
+                        return isAsc ? aVal - bVal : bVal - aVal;
+                    }
+                });
+
+                // Update DOM
+                pairs.forEach(pair => grid.appendChild(pair));
+
+                // Update header classes
+                grid.querySelectorAll('.sortable').forEach(h => {
+                    h.classList.remove('sort-asc', 'sort-desc');
+                });
+                if (header) header.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+            }
+
+            // Header click handlers
+            document.querySelectorAll('.grid-header .sortable').forEach(header => {
+                header.addEventListener('click', function() {
+                    const grid = this.closest('.recipes-grid');
+                    sortGrid(grid, this.dataset.sort, this.dataset.sortType, true);
+                });
+            });
+
+            const sortMap = {
+                'inputs': 'cost',
+                'outputs': 'revenue',
+                'tax': 'tax',
+                'profit': 'profit',
+                'roi': 'roi'
+            };
+
+            // Summary label click handlers
+            document.querySelectorAll('.pair-summary .summary-label').forEach(label => {
+                label.style.cursor = 'pointer';
+                label.classList.add('sortable');
+                label.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const grid = this.closest('.recipes-grid');
+                    const text = this.textContent.trim().toLowerCase();
+                    const sortKey = sortMap[text];
+                    if (sortKey) sortGrid(grid, sortKey, 'number', true);
+                });
+            });
+
+            // Update summary labels when header sort changes
+            function updateSummaryLabels(grid, sortKey, direction) {
+                grid.querySelectorAll('.pair-summary .summary-label').forEach(label => {
+                    label.classList.remove('sort-asc', 'sort-desc');
+                    const text = label.textContent.trim().toLowerCase();
+                    if (sortMap[text] === sortKey) {
+                        label.classList.add(direction);
+                    }
+                });
+            }
+
+            // Patch sortGrid to also update summary labels
+            const origSortGrid = sortGrid;
+            sortGrid = function(grid, sortKey, sortType, toggleDirection) {
+                const header = grid ? grid.querySelector(`.sortable[data-sort="${sortKey}"]`) : null;
+                const isAsc = toggleDirection && header && header.classList.contains('sort-asc');
+                origSortGrid(grid, sortKey, sortType, toggleDirection);
+                if (grid) updateSummaryLabels(grid, sortKey, isAsc ? 'sort-desc' : 'sort-asc');
+            };
+        })();
     </script>
 
     <%= content_for 'scripts' %>

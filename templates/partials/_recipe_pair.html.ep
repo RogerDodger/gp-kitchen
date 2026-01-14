@@ -2,7 +2,34 @@
 % my $modes = compute_recipe_modes($recipe);
 % my $inputs = $recipe->{inputs};
 % my $outputs = $recipe->{outputs};
-<div class="recipe-pair">
+% # Find first non-coins item for volume data
+% my $first_input = (grep { $_->{item_id} != 995 } @$inputs)[0] // {};
+% my $first_output = (grep { $_->{item_id} != 995 } @$outputs)[0] // {};
+<div class="recipe-pair"
+     data-input-name="<%= $inputs->[0]{name} // '' %>"
+     data-output-name="<%= $outputs->[0]{name} // '' %>"
+     data-cost-instant="<%= $modes->{instant}{input_cost} // 0 %>"
+     data-cost-patient="<%= $modes->{patient}{input_cost} // 0 %>"
+     data-revenue-instant="<%= $modes->{instant}{output_revenue} // 0 %>"
+     data-revenue-patient="<%= $modes->{patient}{output_revenue} // 0 %>"
+     data-tax-instant="<%= $modes->{instant}{total_tax} // 0 %>"
+     data-tax-patient="<%= $modes->{patient}{total_tax} // 0 %>"
+     data-profit-instant="<%= $modes->{instant}{profit} // 0 %>"
+     data-profit-patient="<%= $modes->{patient}{profit} // 0 %>"
+     data-roi-instant="<%= $modes->{instant}{roi_percent} // 0 %>"
+     data-roi-patient="<%= $modes->{patient}{roi_percent} // 0 %>"
+     data-invol-instant-5m="<%= $first_input->{vol_5m_high} // 0 %>"
+     data-invol-instant-4h="<%= $first_input->{vol_4h_high} // 0 %>"
+     data-invol-instant-24h="<%= $first_input->{vol_24h_high} // 0 %>"
+     data-invol-patient-5m="<%= $first_input->{vol_5m_low} // 0 %>"
+     data-invol-patient-4h="<%= $first_input->{vol_4h_low} // 0 %>"
+     data-invol-patient-24h="<%= $first_input->{vol_24h_low} // 0 %>"
+     data-outvol-instant-5m="<%= $first_output->{vol_5m_low} // 0 %>"
+     data-outvol-instant-4h="<%= $first_output->{vol_4h_low} // 0 %>"
+     data-outvol-instant-24h="<%= $first_output->{vol_24h_low} // 0 %>"
+     data-outvol-patient-5m="<%= $first_output->{vol_5m_high} // 0 %>"
+     data-outvol-patient-4h="<%= $first_output->{vol_4h_high} // 0 %>"
+     data-outvol-patient-24h="<%= $first_output->{vol_24h_high} // 0 %>">
     <div class="pair-input-names">
         % for my $input (@$inputs) {
             % my $is_coins = $input->{item_id} == 995;
