@@ -3,3 +3,4 @@ config.yml
 data/
 log/
 .claude
+hypnotoad.pid

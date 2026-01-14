@@ -10,7 +10,7 @@ sub new {
     my ($class, %args) = @_;
     return bless {
         schema     => $args{schema},
-        user_agent => $args{user_agent} // 'OSRS-GE-Tracker/1.0',
+        user_agent => $args{user_agent} // 'GP-Kitchen/1.0',
         log        => $args{log} // sub { warn @_, "\n" },
     }, $class;
 }

@@ -1,4 +1,4 @@
-# flippa
+# GP Kitchen
 
 OSRS Grand Exchange conversion profit tracker. Configure input/output item pairs and see real-time profit calculations.
 
@@ -22,4 +22,4 @@ Open http://localhost:3000. Login with password from `config.yml` to configure c
 
 ## Production
 
-See `systemd/` for service files. Copy to `/opt/flippa`, create a `flippa` user, enable services.
+See `systemd/` for service files. Copy to `/opt/gp-kitchen`, create a `gp-kitchen` user, enable services.

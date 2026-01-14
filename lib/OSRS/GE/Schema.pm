@@ -38,6 +38,7 @@ sub connect {
         }
     );
     $self->{dbh}->do('PRAGMA foreign_keys = ON');
+    $self->{dbh}->do('PRAGMA cache_size = -32000');  # 32MB cache
 
     # Attach prices database for reading
     $self->{dbh}->do("ATTACH DATABASE '$self->{prices_db_path}' AS prices");
@@ -81,6 +82,10 @@ sub init_schema {
     my ($self, $schema_file, $prices_schema_file) = @_;
     $schema_file //= 'schema.sql';
     $prices_schema_file //= 'prices_schema.sql';
+
+    # Enable WAL mode for better concurrent read performance (persistent setting)
+    $self->dbh->do('PRAGMA journal_mode = WAL');
+    $self->prices_dbh->do('PRAGMA journal_mode = WAL');
 
     # Initialize prices database first (needed before main schema due to ATTACH)
     $self->_init_schema_file($self->prices_dbh, $prices_schema_file);

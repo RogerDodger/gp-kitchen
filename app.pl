@@ -32,6 +32,14 @@ app->helper(config => sub { $config });
 app->secrets([$config->{session}{secret} // 'change_me_in_production']);
 app->sessions->default_expiration(30 * 24 * 60 * 60);  # 30 days
 
+# Hypnotoad configuration (production server)
+app->config(hypnotoad => {
+    listen  => ['http://*:8080'],
+    workers => 8,
+    clients => 100,
+    accepts => 10000,
+});
+
 # Static files and templates
 app->static->paths->[0] = "$FindBin::Bin/public";
 app->renderer->paths->[0] = "$FindBin::Bin/templates";

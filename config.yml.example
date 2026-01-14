@@ -13,4 +13,4 @@ session:
   secret: "change_this_to_a_random_string_in_production"
 
 # User agent for OSRS Wiki API (required by their API)
-user_agent: "GP-Kitchen/1.0 (Personal flip tracking tool)"
+user_agent: "GP-Kitchen/1.0"
