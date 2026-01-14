@@ -343,19 +343,19 @@ select:focus {
     color: var(--text-accent);
 }
 
-.grid-header .sortable::after {
+.grid-header .sortable::before {
     content: '';
     display: inline-block;
-    margin-left: 0.25rem;
+    margin-right: 0.25rem;
     opacity: 0.3;
 }
 
-.grid-header .sortable.sort-asc::after {
+.grid-header .sortable.sort-asc::before {
     content: '▲';
     opacity: 1;
 }
 
-.grid-header .sortable.sort-desc::after {
+.grid-header .sortable.sort-desc::before {
     content: '▼';
     opacity: 1;
 }
@@ -365,12 +365,12 @@ select:focus {
     color: var(--text-accent);
 }
 
-.summary-label.sortable.sort-asc::after {
-    content: ' ▲';
+.summary-label.sortable.sort-asc::before {
+    content: '▲ ';
 }
 
-.summary-label.sortable.sort-desc::after {
-    content: ' ▼';
+.summary-label.sortable.sort-desc::before {
+    content: '▼ ';
 }
 
 /* Header column alignment */
