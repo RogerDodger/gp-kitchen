@@ -49,7 +49,8 @@
                 <%= stash('stats')->{items_with_high} // 0 %> with prices |
             % }
             Price data from <a href="https://prices.runescape.wiki" target="_blank">OSRS Wiki</a> |
-            Last update: <%= time_ago(stash('stats') ? stash('stats')->{last_update} : undef) %>
+            Last update: <%= time_ago(stash('stats') ? stash('stats')->{last_update} : undef) %> |
+            <a href="/about">About</a>
         </p>
     </footer>
 

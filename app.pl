@@ -296,6 +296,11 @@ get '/api/items/:id/history' => sub ($c) {
     $c->render(json => $data);
 };
 
+# About page
+get '/about' => sub ($c) {
+    $c->render(template => 'about');
+};
+
 # Item detail page
 get '/item/:id' => sub ($c) {
     my $id = $c->param('id');

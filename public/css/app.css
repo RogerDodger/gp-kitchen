@@ -72,7 +72,8 @@ a:hover {
 .nav-right {
     display: flex;
     align-items: baseline;
-    gap: 1.5rem;
+    gap: 0.5rem 1.5rem;
+    flex-flow: row wrap;
 }
 
 .nav-brand {
@@ -1554,4 +1555,33 @@ a.item-name:hover {
     .cookbook-actions .btn {
         text-align: center;
     }
+}
+
+/* About Page */
+.about-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.about-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.about-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.about-section p {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.about-section p:last-child {
+    margin-bottom: 0;
 }

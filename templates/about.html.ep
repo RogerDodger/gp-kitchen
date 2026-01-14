@@ -1,0 +1,36 @@
+% layout 'default';
+% title 'About';
+
+<div class="about-page">
+    <section class="about-section">
+        <h2>About</h2>
+
+        <p>
+            GP Kitchen exists because I found most existing websites for GE trading poorly designed.
+            They put too much emphasis on flipping (buying an item and reselling the same item for a profit).
+            In my experience, this is not an effective way to make money with a medium amount of capital (100M-2B gp).
+        </p>
+
+        <p>
+            The best way to make money with moderate capital is buying items, turning them into something else, and then selling that.
+            This works well for anything where the processing step is close enough to zero-time that the limiting factor is liquidity or buy limits and not time.
+            It also helps when the processing step has some high skill or quest requirements.
+        </p>
+
+        <p>
+            I couldn't find any existing sites that can find such profitable opportunities based on live prices.
+            The closest is <a href="https://www.ge-tracker.com/item-conversions/combination-items">GE Tracker's Combination Items</a>, but this list can't be configured.
+            It has loads of combinations that are useless due to low volume, and is missing lots of useful combinations.
+            To remedy this, I made this website which allows you to configure a dashboard with whatever combinations you like.
+        </p>
+    </section>
+
+    <section class="about-section">
+        <h2>Contact</h2>
+
+        <p>
+            If you have feature suggestions or ideas for good cookbooks, feel free to message me on Discord.
+            My username is 6 weetbix.
+        </p>
+    </section>
+</div>
