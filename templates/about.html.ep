@@ -6,9 +6,9 @@
         <h2>About</h2>
 
         <p>
-            GP Kitchen exists because I found most existing websites for GE trading poorly designed.
+            GP Kitchen exists because I found most existing websites for GE trading suboptimal for making money.
             They put too much emphasis on flipping (buying an item and reselling the same item for a profit).
-            In my experience, this is not an effective way to make money with a medium amount of capital (100M-2B gp).
+            In my experience, this is not an effective way to make money with a moderate amount of capital (100M-2B gp).
         </p>
 
         <p>
@@ -18,10 +18,11 @@
         </p>
 
         <p>
-            I couldn't find any existing sites that can find such profitable opportunities based on live prices.
-            The closest is <a href="https://www.ge-tracker.com/item-conversions/combination-items">GE Tracker's Combination Items</a>, but this list can't be configured.
-            It has loads of combinations that are useless due to low volume, and is missing lots of useful combinations.
-            To remedy this, I made this website which allows you to configure a dashboard with whatever combinations you like.
+            I couldn't find any suitable sites that can find such profitable opportunities based on live prices.
+            The closest is <a href="https://www.ge-tracker.com/item-conversions/combination-items">GE Tracker's Combination Items</a>, but I found this unsatisfactory.
+            It has loads of combinations that are useless due to low volume, is missing lots of useful combinations, and the list of combinations can't be configured.
+            It also doesn't give good visibility for volume or last trade time.
+            To remedy these issues, I made this website.
         </p>
     </section>
 
@@ -29,7 +30,7 @@
         <h2>Contact</h2>
 
         <p>
-            If you have feature suggestions or ideas for good cookbooks, feel free to message me on Discord.
+            If you have ideas for good cookbooks, or just want to chat, feel free to message me on Discord.
             My username is 6 weetbix.
         </p>
     </section>
