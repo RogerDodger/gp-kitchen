@@ -34,7 +34,7 @@
         % for my $input (@$inputs) {
             % my $is_coins = $input->{item_id} == 995;
             <div class="item-row">
-                <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                <img src="/images/items/<%= $input->{item_id} %>.png"
                      alt="<%= $input->{name} %>" class="item-icon"
                      onerror="this.style.display='none'">
                 <a href="/item/<%= $input->{item_id} %>" class="item-name">
@@ -102,7 +102,7 @@
         % for my $output (@$outputs) {
             % my $is_coins = $output->{item_id} == 995;
             <div class="item-row">
-                <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                <img src="/images/items/<%= $output->{item_id} %>.png"
                      alt="<%= $output->{name} %>" class="item-icon"
                      onerror="this.style.display='none'">
                 <a href="/item/<%= $output->{item_id} %>" class="item-name">

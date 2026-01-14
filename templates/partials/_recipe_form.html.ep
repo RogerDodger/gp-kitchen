@@ -20,7 +20,7 @@
                 % for my $input (@{$recipe->{inputs}}) {
                     <tr>
                         <td>
-                            <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                            <img src="/images/items/<%= $input->{item_id} %>.png"
                                  alt="" class="item-icon" onerror="this.style.display='none'">
                             <%= $input->{name} %>
                         </td>
@@ -78,7 +78,7 @@
                     % my $tax = calculate_tax($output->{low_price}, $output->{quantity});
                     <tr>
                         <td>
-                            <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                            <img src="/images/items/<%= $output->{item_id} %>.png"
                                  alt="" class="item-icon" onerror="this.style.display='none'">
                             <%= $output->{name} %>
                         </td>

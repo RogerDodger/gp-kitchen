@@ -28,7 +28,7 @@
                                 <span class="recipe-inputs">
                                     % for my $input (@{$recipe->{inputs}}) {
                                         <span class="recipe-item">
-                                            <img src="https://static.runelite.net/cache/item/icon/<%= $input->{item_id} %>.png"
+                                            <img src="/images/items/<%= $input->{item_id} %>.png"
                                                  alt="" class="preview-icon" onerror="this.style.display='none'">
                                             <%= $input->{quantity} %>x <%= $input->{name} %>
                                         </span>
@@ -38,7 +38,7 @@
                                 <span class="recipe-outputs">
                                     % for my $output (@{$recipe->{outputs}}) {
                                         <span class="recipe-item">
-                                            <img src="https://static.runelite.net/cache/item/icon/<%= $output->{item_id} %>.png"
+                                            <img src="/images/items/<%= $output->{item_id} %>.png"
                                                  alt="" class="preview-icon" onerror="this.style.display='none'">
                                             <%= $output->{quantity} %>x <%= $output->{name} %>
                                         </span>

@@ -6,7 +6,7 @@
     <a href="/" class="btn btn-secondary">&larr; Back to Dashboard</a>
 
     <div class="item-header">
-        <img src="https://static.runelite.net/cache/item/icon/<%= $item->{id} %>.png"
+        <img src="/images/items/<%= $item->{id} %>.png"
              alt="<%= $item->{name} %>" class="item-icon-large"
              onerror="this.style.display='none'">
         <div class="item-title">
