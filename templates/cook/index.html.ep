@@ -1,7 +1,7 @@
 % layout 'default';
 % title 'Edit Dashboard';
 
-<div class="admin-dashboard">
+<div class="cook-dashboard">
     <h1>Edit Dashboard</h1>
 
     % if (flash 'success') {
@@ -11,7 +11,7 @@
         <div class="alert alert-error"><%= flash 'error' %></div>
     % }
 
-    <div class="admin-section">
+    <div class="cook-section">
         %= include 'partials/_recipe_edit_table', recipe_base_url => '/cook/recipe', show_status_controls => 1
     </div>
 </div>
