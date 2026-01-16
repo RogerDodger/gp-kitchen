@@ -678,6 +678,10 @@ a.item-name:hover {
     font-weight: 600;
 }
 
+.items-table tr:last-child td {
+    border-bottom: none;
+}
+
 .add-item-form {
     padding: 1rem 0;
     border-top: 1px dashed var(--divider-color);
@@ -1029,12 +1033,8 @@ a.item-name:hover {
 }
 
 .recipe-pair {
-    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     align-items: center;
-}
-
-.recipe-pair:first-of-type {
-    border-top: none;
 }
 
 .recipe-pair > div {
@@ -1472,7 +1472,7 @@ a.item-name:hover {
         gap: 0.25rem 1.5rem;
         flex-flow: row wrap;
         justify-content: flex-start;
-        border-top: 1px solid var(--border);
+        border-top: 1px dashed var(--divider-color);
         margin-top: 0.25rem;
     }
 
@@ -1683,6 +1683,10 @@ a.item-name:hover {
         padding: 0.75rem;
     }
 
+    .recipes-grid .grid-header + .recipe-pair {
+        border-top: 1px solid var(--border);
+    }
+
     .recipes-grid .pair-input-names,
     .recipes-grid .pair-output-names,
     .recipes-grid .pair-summary {
@@ -1690,7 +1694,7 @@ a.item-name:hover {
     }
 
     .recipes-grid .pair-output-names {
-        border-top: 1px dashed var(--border);
+        border-top: 1px dashed var(--divider-color);
         padding-top: 0.5rem;
     }
 
@@ -1698,7 +1702,7 @@ a.item-name:hover {
         display: flex !important;
         flex-direction: column;
         gap: 0.25rem;
-        border-top: 1px solid var(--border);
+        border-top: 1px dashed var(--divider-color);
         padding-top: 0.5rem;
         grid-column: unset;
     }
