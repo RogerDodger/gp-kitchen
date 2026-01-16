@@ -54,19 +54,13 @@
                 <div class="hero-time">Margin</div>
             </div>
         </div>
-    </div>
-
-    <div class="item-chart card">
-        <div class="chart-header">
-            <h2>Price History</h2>
-            <div class="chart-controls">
-                <select id="timestep-select">
-                    <option value="5m" selected>5 Minutes</option>
-                    <option value="1h">1 Hour</option>
-                    <option value="6h">6 Hours</option>
-                    <option value="24h">24 Hours</option>
-                </select>
-            </div>
+        <div class="chart-controls" style="text-align:right;margin-top:1rem">
+            <select id="timestep-select" style="width:auto">
+                <option value="5m" selected>5 Minutes</option>
+                <option value="1h">1 Hour</option>
+                <option value="6h">6 Hours</option>
+                <option value="24h">24 Hours</option>
+            </select>
         </div>
         <div class="chart-container">
             <canvas id="price-chart"></canvas>
@@ -82,6 +76,26 @@
 <script>
 const itemId = <%= $item->{id} %>;
 let chart = null;
+let chartData = { high: [], low: [] };
+let crosshairX = null;
+let highlightedPoints = { high: null, low: null };
+let isDragging = false;
+let dragStart = null;
+let dragEnd = null;
+let selectedRange = null; // { startX, endX } in pixel coords when selection is locked
+let justFinishedDrag = false;
+
+// Create tooltip once
+const tooltip = document.createElement('div');
+tooltip.id = 'chart-tooltip';
+tooltip.style.cssText = 'position:fixed;background:rgba(255,255,255,0.95);color:#374151;padding:8px 12px;border-radius:4px;font-size:12px;pointer-events:none;z-index:1000;display:none;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.1);';
+document.body.appendChild(tooltip);
+
+// Create selection stats panel
+const selectionStats = document.createElement('div');
+selectionStats.id = 'selection-stats';
+selectionStats.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.95);color:#374151;padding:8px 12px;border-radius:4px;font-size:12px;z-index:100;display:none;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.1);';
+document.querySelector('.chart-container').appendChild(selectionStats);
 
 async function loadPriceHistory(timestep) {
     const loading = document.getElementById('chart-loading');
@@ -109,20 +123,134 @@ async function loadPriceHistory(timestep) {
     }
 }
 
+// Find nearest point in dataset to given x value
+function findNearestPoint(data, xValue) {
+    if (!data || data.length === 0) return null;
+
+    let nearestIdx = 0;
+    let minDist = Math.abs(data[0].x - xValue);
+
+    for (let i = 1; i < data.length; i++) {
+        const dist = Math.abs(data[i].x - xValue);
+        if (dist < minDist) {
+            minDist = dist;
+            nearestIdx = i;
+        }
+    }
+    return nearestIdx;
+}
+
+// Find all points in dataset within x range
+function findPointsInRange(data, minX, maxX) {
+    if (!data || data.length === 0) return [];
+    const indices = [];
+    for (let i = 0; i < data.length; i++) {
+        if (data[i].x >= minX && data[i].x <= maxX) {
+            indices.push(i);
+        }
+    }
+    return indices;
+}
+
+// Plugin to draw crosshair, selection area, and highlighted points
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDatasetsDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const yAxis = chart.scales.y;
+        const datasets = chart.data.datasets;
+        const colors = ['#f87171', '#3b82f6'];
+
+        // Draw selection rectangle if dragging or have selection
+        const startX = selectedRange ? selectedRange.startX : (isDragging ? dragStart : null);
+        const endX = selectedRange ? selectedRange.endX : (isDragging ? dragEnd : null);
+
+        // Draw selection rectangle if exists
+        if (startX !== null && endX !== null) {
+            const left = Math.min(startX, endX);
+            const width = Math.abs(endX - startX);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+            ctx.fillRect(left, yAxis.top, width, yAxis.bottom - yAxis.top);
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(left, yAxis.top, width, yAxis.bottom - yAxis.top);
+            ctx.restore();
+
+            // Draw all points in range
+            const minXVal = xAxis.getValueForPixel(left);
+            const maxXVal = xAxis.getValueForPixel(left + width);
+            const rangeMinX = Math.min(minXVal, maxXVal);
+            const rangeMaxX = Math.max(minXVal, maxXVal);
+
+            [chartData.high, chartData.low].forEach((data, dsIdx) => {
+                const indices = findPointsInRange(data, rangeMinX, rangeMaxX);
+                indices.forEach(idx => {
+                    const point = data[idx];
+                    const x = xAxis.getPixelForValue(point.x);
+                    const y = yAxis.getPixelForValue(point.y);
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = colors[dsIdx];
+                    ctx.fill();
+                    ctx.restore();
+                });
+            });
+        }
+
+        // Draw crosshair and hover points (even if selection exists, but not while dragging)
+        if (crosshairX !== null && !isDragging) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(crosshairX, yAxis.top);
+            ctx.lineTo(crosshairX, yAxis.bottom);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.restore();
+
+            const indices = [highlightedPoints.high, highlightedPoints.low];
+            indices.forEach((idx, dsIdx) => {
+                if (idx === null) return;
+                const point = datasets[dsIdx].data[idx];
+                if (!point) return;
+
+                const x = xAxis.getPixelForValue(point.x);
+                const y = yAxis.getPixelForValue(point.y);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = colors[dsIdx];
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+    }
+};
+
 function renderChart(data, timestep) {
     const ctx = document.getElementById('price-chart').getContext('2d');
 
     // Prepare data points
-    const highPrices = [];
-    const lowPrices = [];
+    chartData.high = [];
+    chartData.low = [];
 
     data.forEach(point => {
         const timestamp = point.timestamp * 1000;
         if (point.avgHighPrice) {
-            highPrices.push({ x: timestamp, y: point.avgHighPrice });
+            chartData.high.push({ x: timestamp, y: point.avgHighPrice, vol: point.highPriceVolume || 0 });
         }
         if (point.avgLowPrice) {
-            lowPrices.push({ x: timestamp, y: point.avgLowPrice });
+            chartData.low.push({ x: timestamp, y: point.avgLowPrice, vol: point.lowPriceVolume || 0 });
         }
     });
 
@@ -131,13 +259,21 @@ function renderChart(data, timestep) {
         chart.destroy();
     }
 
-    // Time unit based on timestep
-    const timeUnit = {
-        '5m': 'hour',
-        '1h': 'hour',
-        '6h': 'day',
-        '24h': 'day'
-    }[timestep] || 'day';
+    // Reset state
+    crosshairX = null;
+    highlightedPoints = { high: null, low: null };
+    selectedRange = null;
+    isDragging = false;
+    justFinishedDrag = false;
+    selectionStats.style.display = 'none';
+
+    // Calculate y-axis precision based on data range
+    const allPrices = [...chartData.high.map(p => p.y), ...chartData.low.map(p => p.y)];
+    const maxPrice = Math.max(...allPrices);
+    const priceRange = maxPrice - Math.min(...allPrices);
+
+    let yPrecision = 1;
+    if (maxPrice >= 1000000 && priceRange / 1000000 < 0.5) yPrecision = 2;
 
     chart = new Chart(ctx, {
         type: 'line',
@@ -145,20 +281,20 @@ function renderChart(data, timestep) {
             datasets: [
                 {
                     label: 'Instant Buy (Ask)',
-                    data: highPrices,
+                    data: chartData.high,
                     borderColor: '#f87171',
-                    backgroundColor: 'rgba(248, 113, 113, 0.1)',
                     tension: 0.1,
                     pointRadius: 0,
+                    pointHoverRadius: 0,
                     borderWidth: 2,
                 },
                 {
                     label: 'Instant Sell (Bid)',
-                    data: lowPrices,
+                    data: chartData.low,
                     borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.1,
                     pointRadius: 0,
+                    pointHoverRadius: 0,
                     borderWidth: 2,
                 }
             ]
@@ -166,55 +302,27 @@ function renderChart(data, timestep) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
             plugins: {
-                legend: {
-                    labels: {
-                        color: '#e8e8e8'
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + formatGp(context.parsed.y);
-                        }
-                    }
-                }
+                legend: { display: false },
+                tooltip: { enabled: false }
             },
             scales: {
                 x: {
                     type: 'time',
-                    time: {
-                        unit: timeUnit,
-                        tooltipFormat: 'MMM d, h:mm a',
-                        displayFormats: {
-                            hour: 'h:mm a',
-                            day: 'MMM d'
-                        }
-                    },
-                    ticks: {
-                        color: '#a8a8a8'
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    }
+                    time: { unit: { '5m': 'hour', '1h': 'day', '6h': 'week', '24h': 'month' }[timestep] },
+                    ticks: { color: '#6b7280', maxRotation: 0 },
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 },
                 y: {
                     ticks: {
-                        color: '#a8a8a8',
-                        callback: function(value) {
-                            return formatGpCompact(value);
-                        }
+                        color: '#6b7280',
+                        callback: value => formatGpCompact(value, yPrecision)
                     },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    }
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 }
             }
-        }
+        },
+        plugins: [crosshairPlugin]
     });
 }
 
@@ -223,18 +331,184 @@ function formatGp(num) {
     return num.toLocaleString() + ' gp';
 }
 
-function formatGpCompact(num) {
-    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+function formatGpCompact(num, precision) {
+    const p = precision || 1;
+    if (num >= 1000000000) return (num / 1000000000).toFixed(p) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(p) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(p) + 'K';
     return num.toString();
 }
+
+// Event handlers (set up once)
+const canvas = document.getElementById('price-chart');
+
+canvas.addEventListener('mousedown', (e) => {
+    if (!chart) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const chartArea = chart.chartArea;
+
+    if (x >= chartArea.left && x <= chartArea.right) {
+        isDragging = true;
+        dragStart = x;
+        dragEnd = x;
+        selectedRange = null;
+        selectionStats.style.display = 'none';
+        crosshairX = null;
+        tooltip.style.display = 'none';
+        chart.draw();
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!chart) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const chartArea = chart.chartArea;
+
+    if (isDragging) {
+        dragEnd = Math.max(chartArea.left, Math.min(chartArea.right, x));
+        chart.draw();
+        return;
+    }
+
+    if (x < chartArea.left || x > chartArea.right) {
+        crosshairX = null;
+        highlightedPoints = { high: null, low: null };
+        tooltip.style.display = 'none';
+        chart.draw();
+        return;
+    }
+
+    crosshairX = x;
+    const xValue = chart.scales.x.getValueForPixel(x);
+
+    highlightedPoints.high = findNearestPoint(chartData.high, xValue);
+    highlightedPoints.low = findNearestPoint(chartData.low, xValue);
+
+    let html = '';
+    if (highlightedPoints.high !== null) {
+        const p = chartData.high[highlightedPoints.high];
+        const time = new Date(p.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        html += `<div style="color:#dc2626;font-weight:600">▲ ${formatGp(p.y)}</div>`;
+        html += `<div style="color:#6b7280;font-size:10px">${time} · <strong>${p.vol.toLocaleString()}</strong> vol</div>`;
+    }
+    if (highlightedPoints.low !== null) {
+        const p = chartData.low[highlightedPoints.low];
+        const time = new Date(p.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        html += `<div style="color:#2563eb;font-weight:600;${highlightedPoints.high !== null ? 'margin-top:6px' : ''}">▼ ${formatGp(p.y)}</div>`;
+        html += `<div style="color:#6b7280;font-size:10px">${time} · <strong>${p.vol.toLocaleString()}</strong> vol</div>`;
+    }
+
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 15) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+
+    chart.draw();
+});
+
+function finishDrag() {
+    if (!chart || !isDragging) return;
+
+    // Lock selection if drag was significant (> 5px)
+    if (Math.abs(dragEnd - dragStart) > 5) {
+        selectedRange = { startX: dragStart, endX: dragEnd };
+        justFinishedDrag = true;
+
+        // Calculate and show stats for selected range
+        const left = Math.min(dragStart, dragEnd);
+        const width = Math.abs(dragEnd - dragStart);
+        const minXVal = chart.scales.x.getValueForPixel(left);
+        const maxXVal = chart.scales.x.getValueForPixel(left + width);
+        const rangeMinX = Math.min(minXVal, maxXVal);
+        const rangeMaxX = Math.max(minXVal, maxXVal);
+
+        const highIndices = findPointsInRange(chartData.high, rangeMinX, rangeMaxX);
+        const lowIndices = findPointsInRange(chartData.low, rangeMinX, rangeMaxX);
+
+        // Get time range from selected points
+        const allTimes = [
+            ...highIndices.map(i => chartData.high[i].x),
+            ...lowIndices.map(i => chartData.low[i].x)
+        ];
+        const minTime = new Date(Math.min(...allTimes));
+        const maxTime = new Date(Math.max(...allTimes));
+        const fmt = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        const rangeLabel = `${minTime.toLocaleString('en-US', fmt)} – ${maxTime.toLocaleString('en-US', fmt)}`;
+
+        let html = `<div style="font-weight:600;margin-bottom:4px">${rangeLabel}</div>`;
+
+        if (highIndices.length > 0) {
+            const points = highIndices.map(i => chartData.high[i]);
+            const prices = points.map(p => p.y);
+            const totalVol = points.reduce((sum, p) => sum + p.vol, 0);
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            html += `<div style="color:#dc2626;font-weight:600">▲ Avg: ${formatGp(Math.round(avg))}</div>`;
+            html += `<div style="color:#6b7280;font-size:10px">${formatGp(min)} – ${formatGp(max)}</div>`;
+            html += `<div style="color:#374151;font-weight:600;margin-bottom:6px">${totalVol.toLocaleString()} vol</div>`;
+        }
+
+        if (lowIndices.length > 0) {
+            const points = lowIndices.map(i => chartData.low[i]);
+            const prices = points.map(p => p.y);
+            const totalVol = points.reduce((sum, p) => sum + p.vol, 0);
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            html += `<div style="color:#2563eb;font-weight:600">▼ Avg: ${formatGp(Math.round(avg))}</div>`;
+            html += `<div style="color:#6b7280;font-size:10px">${formatGp(min)} – ${formatGp(max)}</div>`;
+            html += `<div style="color:#374151;font-weight:600">${totalVol.toLocaleString()} vol</div>`;
+        }
+
+        selectionStats.innerHTML = html;
+        selectionStats.style.display = 'block';
+    }
+
+    isDragging = false;
+    dragStart = null;
+    dragEnd = null;
+    chart.draw();
+}
+
+canvas.addEventListener('mouseup', finishDrag);
+document.addEventListener('mouseup', finishDrag);
+
+canvas.addEventListener('mouseleave', () => {
+    if (!chart) return;
+
+    if (!selectedRange && !isDragging) {
+        crosshairX = null;
+        highlightedPoints = { high: null, low: null };
+        tooltip.style.display = 'none';
+        chart.draw();
+    }
+});
+
+// Click to clear selection
+canvas.addEventListener('click', (e) => {
+    if (!chart) return;
+
+    // Don't clear if we just finished dragging
+    if (justFinishedDrag) {
+        justFinishedDrag = false;
+        return;
+    }
+
+    if (selectedRange) {
+        selectedRange = null;
+        selectionStats.style.display = 'none';
+        chart.draw();
+    }
+});
 
 // Initialize
 document.getElementById('timestep-select').addEventListener('change', function() {
     loadPriceHistory(this.value);
 });
 
-loadPriceHistory('5m');
+loadPriceHistory(document.getElementById('timestep-select').value);
 </script>
 % end
