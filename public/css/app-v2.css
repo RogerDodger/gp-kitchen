@@ -746,39 +746,153 @@ a.item-name:hover {
     max-width: 1000px;
 }
 
+/* Item Header - Combined info and hero prices */
 .item-header {
+    margin: 1rem 0;
+}
+
+/* Item Info Bar */
+.item-info {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    margin: 1rem 0;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    margin-bottom: 0.5rem;
+}
+
+.item-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .item-icon-large {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
 }
 
-.item-title h1 {
-    font-size: 1.25rem;
+.item-identity .item-name {
     font-weight: 600;
-    margin-bottom: 0.125rem;
+    font-size: 1rem;
 }
 
-.item-examine {
-    color: var(--text-secondary);
+.item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
     font-size: 0.875rem;
+    color: var(--text-secondary);
 }
 
-.item-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
+.item-meta strong {
+    color: var(--text-primary);
+}
+
+/* Hero Prices */
+.hero-prices {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 0.5rem;
+}
+
+.hero-price {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.hero-main {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.hero-arrow {
+    font-size: 1.75rem;
+    line-height: 1;
+}
+
+.hero-buy .hero-arrow {
+    color: #dc2626;
+}
+
+.hero-sell .hero-arrow {
+    color: #2563eb;
+}
+
+.hero-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.hero-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.hero-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Medium screens */
+@media (max-width: 700px) {
+    .hero-value,
+    .hero-arrow {
+        font-size: 1.5rem;
+    }
+
+    .hero-prices {
+        gap: 1.5rem;
+    }
+}
+
+/* Small screens */
+@media (max-width: 540px) {
+    .item-info {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0 0.5rem;
+    }
+
+    .item-identity {
+        justify-content: center;
+    }
+
+    .item-meta {
+        justify-content: center;
+        font-size: 0.8rem;
+        row-gap: 0;
+    }
+
+    .hero-prices {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .hero-price {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        width: 100%;
+    }
+
+    .hero-main {
+        flex-direction: row;
+    }
+
+    .hero-time {
+        text-align: right;
+    }
+
+    .hero-value,
+    .hero-arrow {
+        font-size: 1.25rem;
+    }
 }
 
 .card {

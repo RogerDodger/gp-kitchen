@@ -5,82 +5,53 @@
 <div class="item-page">
     <a href="/" class="btn btn-secondary">&larr; Back to Dashboard</a>
 
-    <div class="item-header">
-        <img src="/images/items/<%= $item->{id} %>.png"
-             alt="<%= $item->{name} %>" class="item-icon-large"
-             onerror="this.style.display='none'">
-        <div class="item-title">
-            <h1><%= $item->{name} %></h1>
-            <p class="item-examine"><%= $item->{examine} // '' %></p>
+    <div class="item-header card">
+        <div class="item-info">
+            <div class="item-identity">
+                <img src="/images/items/<%= $item->{id} %>.png"
+                     alt="<%= $item->{name} %>" class="item-icon-large"
+                     onerror="this.style.display='none'">
+                <div class="item-name"><%= $item->{name} %></div>
+            </div>
+            <div class="item-meta">
+                % if ($item->{ge_limit}) {
+                    <span class="meta-item">Limit: <strong><%= $item->{ge_limit} %></strong></span>
+                % }
+                % if ($item->{highalch}) {
+                    <span class="meta-item">HA: <strong><%= format_gp($item->{highalch}) %></strong></span>
+                % }
+                <span class="meta-item meta-links">
+                    <a href="https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=<%= $item->{id} %>" target="_blank">Wiki</a>
+                    &middot;
+                    <a href="https://prices.runescape.wiki/osrs/item/<%= $item->{id} %>" target="_blank">Prices</a>
+                    &middot;
+                    <a href="https://www.ge-tracker.com/item/<%= $item->{id} %>" target="_blank">GE Tracker</a>
+                </span>
+            </div>
         </div>
-    </div>
-
-    <div class="item-grid">
-        <div class="item-prices card">
-            <h2>Current Prices</h2>
-            <div class="price-row">
-                <span class="price-label">Instant Buy (Ask):</span>
-                <span class="price-value"><%= format_gp($item->{high_price}) %></span>
+        <div class="hero-prices">
+            <div class="hero-price hero-buy">
+                <div class="hero-main">
+                    <span class="hero-arrow">&#9650;</span>
+                    <span class="hero-value"><%= format_gp($item->{high_price}) %></span>
+                </div>
+                % if ($item->{high_time}) {
+                    <div class="hero-time"><%= time_ago($item->{high_time}) %></div>
+                % }
             </div>
-            <div class="price-row">
-                <span class="price-label">Instant Sell (Bid):</span>
-                <span class="price-value"><%= format_gp($item->{low_price}) %></span>
+            <div class="hero-price hero-sell">
+                <div class="hero-main">
+                    <span class="hero-arrow">&#9660;</span>
+                    <span class="hero-value"><%= format_gp($item->{low_price}) %></span>
+                </div>
+                % if ($item->{low_time}) {
+                    <div class="hero-time"><%= time_ago($item->{low_time}) %></div>
+                % }
             </div>
-            <div class="price-row">
-                <span class="price-label">Margin:</span>
+            <div class="hero-price hero-margin">
                 % my $margin = ($item->{high_price} // 0) - ($item->{low_price} // 0);
-                <span class="price-value <%= $margin > 0 ? 'positive' : 'negative' %>">
-                    <%= format_gp($margin) %>
-                </span>
-            </div>
-            % if ($item->{avg_high_price} || $item->{avg_low_price}) {
-                <h3>5-Minute Averages</h3>
-                <div class="price-row">
-                    <span class="price-label">Avg Buy:</span>
-                    <span class="price-value"><%= format_gp($item->{avg_high_price}) %></span>
-                </div>
-                <div class="price-row">
-                    <span class="price-label">Avg Sell:</span>
-                    <span class="price-value"><%= format_gp($item->{avg_low_price}) %></span>
-                </div>
-            % }
-        </div>
-
-        <div class="item-info card">
-            <h2>Item Info</h2>
-            <div class="info-row">
-                <span class="info-label">Item ID:</span>
-                <span class="info-value"><%= $item->{id} %></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Members:</span>
-                <span class="info-value"><%= $item->{members} ? 'Yes' : 'No' %></span>
-            </div>
-            % if ($item->{ge_limit}) {
-                <div class="info-row">
-                    <span class="info-label">Buy Limit:</span>
-                    <span class="info-value"><%= $item->{ge_limit} %></span>
-                </div>
-            % }
-            % if ($item->{highalch}) {
-                <div class="info-row">
-                    <span class="info-label">High Alch:</span>
-                    <span class="info-value"><%= format_gp($item->{highalch}) %></span>
-                </div>
-            % }
-            % if ($item->{lowalch}) {
-                <div class="info-row">
-                    <span class="info-label">Low Alch:</span>
-                    <span class="info-value"><%= format_gp($item->{lowalch}) %></span>
-                </div>
-            % }
-            <div class="info-row">
-                <span class="info-label">Wiki:</span>
-                <span class="info-value">
-                    <a href="https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=<%= $item->{id} %>" target="_blank">
-                        View on Wiki
-                    </a>
-                </span>
+                <div class="hero-value <%= $margin > 0 ? 'positive' : 'negative' %>"><%= format_gp($margin) %></div>
+                <div class="hero-time">Margin</div>
             </div>
         </div>
     </div>
@@ -184,8 +155,8 @@ function renderChart(data, timestep) {
                 {
                     label: 'Instant Sell (Bid)',
                     data: lowPrices,
-                    borderColor: '#4ade80',
-                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     tension: 0.1,
                     pointRadius: 0,
                     borderWidth: 2,
