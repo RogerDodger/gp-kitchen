@@ -1,34 +1,39 @@
-/* GP Kitchen - Clean Light Theme with Color Accents */
+/* GP Kitchen - Ye Olde Shoppe Theme */
 
 :root {
-    /* Clean light backgrounds */
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f1f5f9;
+    /* Warm parchment backgrounds */
+    --bg-primary: #f5efe0;
+    --bg-secondary: #faf6eb;
+    --bg-tertiary: #ede4d0;
 
-    /* Dark text for readability */
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
+    /* Rich brown text */
+    --text-primary: #2d2416;
+    --text-secondary: #6b5b47;
 
-    /* Accent colors - used sparingly */
-    --accent: #6366f1;
-    --accent-hover: #4f46e5;
-    --accent-light: #e0e7ff;
+    /* Medieval accents */
+    --accent: #8b5a2b;
+    --accent-hover: #6b4423;
+    --accent-light: #d4c4a8;
 
-    /* Status colors */
-    --positive: #059669;
-    --positive-light: #d1fae5;
-    --negative: #dc2626;
-    --negative-light: #fee2e2;
+    /* Muted status colors */
+    --positive: #2d6a4f;
+    --positive-light: #d8e9d8;
+    --negative: #9c3d3d;
+    --negative-light: #f5dada;
 
-    /* Highlight colors */
-    --gold: #d97706;
-    --cyan: #0891b2;
+    /* OSRS gold */
+    --gold: #b8860b;
+    --cyan: #4a7c8c;
 
-    --border: #e2e8f0;
-    --border-dark: #cbd5e1;
-    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    /* Warmer borders */
+    --border: #d4c4a8;
+    --border-dark: #b8a88c;
+    --shadow: 0 2px 4px rgba(45, 36, 22, 0.08);
+    --shadow-md: 0 4px 8px rgba(45, 36, 22, 0.12);
+
+    /* Decorative */
+    --divider-color: #c4b49a;
+    --table-stripe: rgba(139, 90, 43, 0.04);
 }
 
 * {
@@ -38,7 +43,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Gill Sans', 'Optima', 'Avenir', 'Segoe UI', system-ui, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
@@ -51,20 +56,20 @@ a {
 }
 
 a:hover {
-    color: var(--accent-hover);
+    color: var(--gold);
     text-decoration: underline;
 }
 
 /* Navbar */
 .navbar {
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
     padding: 1.05rem 2.4rem;
     display: flex;
     flex-flow: row wrap;
     gap: 0.6rem 2.4rem;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border-dark);
     font-size: 1.2em;
 }
 
@@ -84,7 +89,7 @@ a:hover {
 }
 
 .nav-brand:hover {
-    color: var(--accent);
+    color: var(--gold);
     text-decoration: none;
 }
 
@@ -130,15 +135,17 @@ a:hover {
     font-size: 0.875rem;
     border-top: 1px solid var(--border);
     margin-top: 2rem;
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
 }
 
 /* Buttons */
 .btn {
     display: inline-block;
     padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
@@ -146,14 +153,20 @@ a:hover {
     transition: all 0.15s;
 }
 
+.btn:hover {
+    background: var(--bg-tertiary);
+    text-decoration: none;
+}
+
 .btn-primary {
     background: var(--accent);
-    color: white;
+    color: #faf6eb;
+    border: 1px solid var(--accent-hover);
 }
 
 .btn-primary:hover {
     background: var(--accent-hover);
-    color: white;
+    color: #faf6eb;
     text-decoration: none;
 }
 
@@ -229,8 +242,8 @@ input:focus,
 textarea:focus,
 select:focus {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.2);
 }
 
 /* Alerts */
@@ -526,9 +539,18 @@ a.item-name:hover {
 .empty-state {
     text-align: center;
     padding: 3rem 2rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.empty-state::before {
+    content: '~ ';
+    color: var(--gold);
+}
+
+.empty-state::after {
+    content: ' ~';
+    color: var(--gold);
 }
 
 .empty-state p {
@@ -554,19 +576,22 @@ a.item-name:hover {
 }
 
 .cook-section {
-    background: var(--bg-secondary);
-    padding: 1.25rem;
-    border-radius: 8px;
-    margin-bottom: 1.25rem;
-    border: 1px solid var(--border);
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed var(--divider-color);
+}
+
+.cook-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
 }
 
 .cook-section h2 {
     color: var(--text-primary);
     margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
-    font-size: 1rem;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 0.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
 }
 
@@ -600,11 +625,9 @@ a.item-name:hover {
 }
 
 .form-section {
-    background: var(--bg-secondary);
-    padding: 1.25rem;
-    border-radius: 8px;
-    margin: 1rem 0;
-    border: 1px solid var(--border);
+    padding: 1rem 0 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-left: 3px solid var(--gold);
 }
 
 .form-section h2 {
@@ -656,9 +679,9 @@ a.item-name:hover {
 }
 
 .add-item-form {
-    background: var(--bg-tertiary);
-    padding: 1rem;
-    border-radius: 6px;
+    padding: 1rem 0;
+    border-top: 1px dashed var(--divider-color);
+    margin-top: 0.5rem;
 }
 
 .add-item-form form {
@@ -712,10 +735,8 @@ a.item-name:hover {
 
 /* Profit Preview */
 .profit-preview {
-    background: var(--bg-tertiary);
-    padding: 1rem 1.25rem;
-    border-radius: 8px;
-    margin-top: 1rem;
+    padding: 1rem 0 1rem 1.25rem;
+    margin-top: 1.5rem;
     border-left: 3px solid var(--gold);
 }
 
@@ -895,10 +916,7 @@ a.item-name:hover {
 }
 
 .card {
-    background: var(--bg-secondary);
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    padding: 1rem 0;
 }
 
 .card h2 {
@@ -987,10 +1005,6 @@ a.item-name:hover {
 
 /* Recipes Grid */
 .recipes-grid {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
     font-size: 1rem;
     display: grid;
     grid-template-columns:
@@ -1015,7 +1029,7 @@ a.item-name:hover {
 }
 
 .recipe-pair {
-    border-top: 2px solid var(--border-dark);
+    border-top: 1px solid var(--border);
     align-items: center;
 }
 
@@ -1188,7 +1202,7 @@ a.item-name:hover {
 }
 
 .cookbook-recipes-wrapper .recipes-grid {
-    border-radius: 8px 8px 0 0;
+    /* No border-radius - open layout */
 }
 
 .cookbook-footer {
@@ -1321,11 +1335,9 @@ a.item-name:hover {
 }
 
 .cookbook-form {
-    background: var(--bg-secondary);
-    padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    margin: 1em 0;
+    margin: 1.5rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid var(--gold);
 }
 
 .cookbook-form textarea {
@@ -1354,12 +1366,15 @@ a.item-name:hover {
 
 /* Danger Zone */
 .danger-zone {
-    border-color: var(--negative);
+    margin-top: 2rem;
+    padding-left: 1rem;
     border-left: 3px solid var(--negative);
+    border-bottom: none;
 }
 
 .danger-zone h2 {
     color: var(--negative);
+    border-bottom-color: var(--negative);
 }
 
 /* Sort Controls */
@@ -1769,11 +1784,12 @@ a.item-name:hover {
 }
 
 .about-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--divider-color);
+}
+
+.about-section:last-child {
+    border-bottom: none;
 }
 
 .about-section h2 {
