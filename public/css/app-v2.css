@@ -1,14 +1,14 @@
 /* GP Kitchen - Ye Olde Shoppe Theme */
 
 :root {
-    /* Warm parchment backgrounds */
-    --bg-primary: #f5efe0;
-    --bg-secondary: #faf6eb;
-    --bg-tertiary: #ede4d0;
+    /* Warm parchment backgrounds - lighter for contrast */
+    --bg-primary: #faf7ed;
+    --bg-secondary: #fdfcf8;
+    --bg-tertiary: #f5efe0;
 
-    /* Rich brown text */
-    --text-primary: #2d2416;
-    --text-secondary: #6b5b47;
+    /* Rich brown text - high contrast */
+    --text-primary: #1a1408;
+    --text-secondary: #4a3d2e;
 
     /* Medieval accents */
     --accent: #8b5a2b;
@@ -25,16 +25,17 @@
     --gold: #b8860b;
     --cyan: #4a7c8c;
 
-    /* Medieval Green Palette (Life) */
-    --green-deep: #1a4d2e;
-    --green-rich: #2d6a4f;
+    /* Medieval Green Palette (Life) - high contrast */
+    --green-deep: #0f3d1f;
+    --green-rich: #1a5538;
+    --green-link: #0f7b3e;
     --green-light: #52b788;
     --green-pale: #d8f3dc;
 
-    /* Medieval Gold Palette (Wealth) */
-    --gold-deep: #8b6914;
-    --gold-rich: #b8860b;
-    --gold-bright: #daa520;
+    /* Medieval Gold Palette (Wealth) - high contrast */
+    --gold-deep: #6b5010;
+    --gold-rich: #8b6508;
+    --gold-bright: #b8860b;
     --gold-pale: #f5e6a3;
 
     /* Warmer borders */
@@ -63,12 +64,12 @@ body {
 }
 
 a {
-    color: var(--green-rich);
+    color: var(--green-link);
     text-decoration: none;
 }
 
 a:hover {
-    color: var(--green-deep);
+    color: var(--green-rich);
     text-decoration: underline;
 }
 
