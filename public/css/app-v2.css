@@ -962,7 +962,21 @@ h1::first-letter {
 
 .item-identity .item-name {
     font-weight: 600;
-    font-size: 1.4rem;
+    font-size: 1.5rem;
+    font-family: 'Times New Roman', 'Georgia', serif;
+    line-height: 36px;
+}
+
+.item-identity .item-name::first-letter {
+    font-size: 2.25rem;
+    line-height: 1;
+    vertical-align: text-bottom;
+    margin-right: 0.05em;
+    color: var(--gold-rich);
+    font-weight: 700;
+    text-shadow:
+        1px 1px 0 var(--green-deep),
+        2px 2px 0 var(--gold-deep);
 }
 
 .item-meta {
@@ -979,10 +993,23 @@ h1::first-letter {
 
 /* Hero Prices */
 .hero-prices {
+    position: relative;
     display: flex;
     justify-content: center;
     gap: 2rem;
-    margin-top: 0.5rem;
+    padding-top: 2.25rem;
+}
+
+.hero-prices::before {
+    content: '· ✦ ·';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--gold-rich);
+    font-size: 0.875rem;
+    letter-spacing: 0.5em;
+    opacity: 0.7;
 }
 
 .hero-price {
@@ -1086,6 +1113,17 @@ h1::first-letter {
     border: none;
     font-size: 0.9375rem;
     font-weight: 600;
+}
+
+.chart-controls::before {
+    content: '· ✦ ·';
+    display: block;
+    text-align: center;
+    color: var(--gold-rich);
+    font-size: 0.875rem;
+    letter-spacing: 0.5em;
+    margin-bottom: 0.75rem;
+    opacity: 0.7;
 }
 
 .chart-controls select {
@@ -1875,23 +1913,24 @@ h1::first-letter {
     }
 
     .hero-prices {
-        flex-direction: column;
-        gap: 0.25rem;
+        display: grid;
+        grid-template-columns: auto auto;
+        justify-content: center;
+        align-items: center;
+        gap: 0.25rem 1rem;
     }
 
     .hero-price {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        width: 100%;
+        display: contents;
     }
 
     .hero-main {
         flex-direction: row;
+        justify-self: end;
     }
 
     .hero-time {
-        text-align: right;
+        text-align: left;
     }
 
     .hero-value,
