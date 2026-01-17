@@ -77,7 +77,7 @@
 <script>
 const itemId = <%= $item->{id} %>;
 let chart = null;
-let chartData = { high: [], low: [] };
+let chartData = { high: [], low: [], volHigh: [], volLow: [] };
 let crosshairX = null;
 let highlightedPoints = { high: null, low: null };
 let isDragging = false;
@@ -218,7 +218,8 @@ const crosshairPlugin = {
             const indices = [highlightedPoints.high, highlightedPoints.low];
             indices.forEach((idx, dsIdx) => {
                 if (idx === null) return;
-                const point = datasets[dsIdx].data[idx];
+                // Price line datasets are at index 2 and 3 (after volume bars)
+                const point = datasets[dsIdx + 2].data[idx];
                 if (!point) return;
 
                 const x = xAxis.getPixelForValue(point.x);
@@ -244,6 +245,8 @@ function renderChart(data, timestep) {
     // Prepare data points
     chartData.high = [];
     chartData.low = [];
+    chartData.volHigh = [];
+    chartData.volLow = [];
 
     data.forEach(point => {
         const timestamp = point.timestamp * 1000;
@@ -253,6 +256,9 @@ function renderChart(data, timestep) {
         if (point.avgLowPrice) {
             chartData.low.push({ x: timestamp, y: point.avgLowPrice, vol: point.lowPriceVolume || 0 });
         }
+        // Volume data (always add to keep bars aligned)
+        chartData.volHigh.push({ x: timestamp, y: point.highPriceVolume || 0 });
+        chartData.volLow.push({ x: timestamp, y: point.lowPriceVolume || 0 });
     });
 
     // Destroy existing chart
@@ -281,6 +287,28 @@ function renderChart(data, timestep) {
         data: {
             datasets: [
                 {
+                    type: 'bar',
+                    label: 'Buy Volume',
+                    data: chartData.volHigh,
+                    backgroundColor: 'rgba(248, 113, 113, 0.30)',
+                    yAxisID: 'y1',
+                    order: 2,
+                    stack: 'volume',
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9,
+                },
+                {
+                    type: 'bar',
+                    label: 'Sell Volume',
+                    data: chartData.volLow,
+                    backgroundColor: 'rgba(59, 130, 246, 0.30)',
+                    yAxisID: 'y1',
+                    order: 2,
+                    stack: 'volume',
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9,
+                },
+                {
                     label: 'Instant Buy (Ask)',
                     data: chartData.high,
                     borderColor: '#f87171',
@@ -288,6 +316,8 @@ function renderChart(data, timestep) {
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     borderWidth: 2,
+                    yAxisID: 'y',
+                    order: 1,
                 },
                 {
                     label: 'Instant Sell (Bid)',
@@ -297,6 +327,8 @@ function renderChart(data, timestep) {
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     borderWidth: 2,
+                    yAxisID: 'y',
+                    order: 1,
                 }
             ]
         },
@@ -337,6 +369,18 @@ function renderChart(data, timestep) {
                         callback: value => formatGpCompact(value, yPrecision)
                     },
                     grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                },
+                y1: {
+                    display: false,
+                    stacked: true,
+                    beginAtZero: true,
+                    max: (() => {
+                        const allVols = [...chartData.volHigh.map(p => p.y), ...chartData.volLow.map(p => p.y)]
+                            .sort((a, b) => b - a);
+                        // Use 95th percentile to ignore outliers
+                        const idx = Math.floor(allVols.length * 0.05);
+                        return (allVols[idx] || allVols[0]) * 8;
+                    })()
                 }
             }
         },
