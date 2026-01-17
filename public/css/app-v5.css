@@ -94,7 +94,7 @@ a:hover {
 .nav-right {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem 1.5rem;
+    gap: 1rem 1.5rem;
     flex-flow: row wrap;
 }
 

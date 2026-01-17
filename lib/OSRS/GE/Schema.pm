@@ -772,6 +772,14 @@ sub get_all_recipes {
     return $recipes;
 }
 
+sub count_user_recipes {
+    my ($self, $user_id) = @_;
+    return $self->dbh->selectrow_array(
+        'SELECT COUNT(*) FROM recipes WHERE user_id = ?',
+        undef, $user_id
+    ) // 0;
+}
+
 # =====================================
 # Recipe Input/Output management
 # =====================================

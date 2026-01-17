@@ -9,6 +9,9 @@ use YAML::PP;
 use OSRS::GE::Schema;
 use OSRS::GE::PriceUpdater;
 
+# Limits
+use constant MAX_USER_RECIPES => 500;
+
 # Load configuration
 my $config_file = $ENV{GP_KITCHEN_CONFIG} // "$FindBin::Bin/config.yml";
 my $config = YAML::PP->new->load_file($config_file);
@@ -577,6 +580,10 @@ group {
         # Create recipe on first input if blank
         if ($recipe_id eq 'blank') {
             return $c->redirect_to('/cook/recipe/blank') unless $item_id;
+            if ($schema->count_user_recipes($user->{id}) >= MAX_USER_RECIPES) {
+                $c->flash(error => "Maximum " . MAX_USER_RECIPES . " recipes reached");
+                return $c->redirect_to('/cook');
+            }
             $recipe_id = $schema->create_recipe($user->{id});
             $schema->add_recipe_input($recipe_id, $item_id, $quantity);
             $c->flash(restore_scroll => 1);
@@ -621,6 +628,10 @@ group {
         # Create recipe on first output if blank
         if ($recipe_id eq 'blank') {
             return $c->redirect_to('/cook/recipe/blank') unless $item_id;
+            if ($schema->count_user_recipes($user->{id}) >= MAX_USER_RECIPES) {
+                $c->flash(error => "Maximum " . MAX_USER_RECIPES . " recipes reached");
+                return $c->redirect_to('/cook');
+            }
             $recipe_id = $schema->create_recipe($user->{id});
             $schema->add_recipe_output($recipe_id, $item_id, $quantity);
             $c->flash(restore_scroll => 1);
@@ -705,6 +716,15 @@ post '/cookbooks/:id/import' => sub ($c) {
     @recipe_ids = grep { /^\d+$/ } @recipe_ids;
 
     if (@recipe_ids) {
+        my $current_count = $schema->count_user_recipes($user->{id});
+        my $would_have = $current_count + scalar(@recipe_ids);
+        if ($would_have > MAX_USER_RECIPES) {
+            my $can_import = MAX_USER_RECIPES - $current_count;
+            $c->flash(error => "Cannot import " . scalar(@recipe_ids) . " recipes. " .
+                "You have $current_count recipes (max " . MAX_USER_RECIPES . "). " .
+                ($can_import > 0 ? "You can import up to $can_import more." : "Delete some recipes first."));
+            return $c->redirect_to("/cookbooks/$cookbook_id/import");
+        }
         eval {
             $schema->import_cookbook($cookbook_id, $user->{id}, \@recipe_ids);
         };
