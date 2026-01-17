@@ -311,19 +311,23 @@ function renderChart(data, timestep) {
                 x: {
                     type: 'time',
                     time: {
-                        unit: { '5m': 'hour', '1h': 'day', '6h': 'week', '24h': 'month' }[timestep],
-                        displayFormats: {
-                            hour: 'd MMM, HH:mm',
-                            day: 'd MMM',
-                            week: 'd MMM',
-                            month: 'MMM yyyy'
-                        }
+                        unit: { '5m': 'hour', '1h': 'day', '6h': 'week', '24h': 'month' }[timestep]
                     },
                     ticks: {
                         color: '#6b7280',
                         maxRotation: 0,
                         autoSkip: true,
-                        maxTicksLimit: { '5m': 8, '1h': 10, '6h': 12, '24h': 12 }[timestep]
+                        maxTicksLimit: { '5m': 8, '1h': 10, '6h': 12, '24h': 12 }[timestep],
+                        callback: function(value) {
+                            const d = new Date(value);
+                            if (timestep === '5m') {
+                                return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric' });
+                            }
+                            if (timestep === '1h' || timestep === '6h') {
+                                return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                            }
+                            return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                        }
                     },
                     grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 },

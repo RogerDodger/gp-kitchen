@@ -2103,8 +2103,10 @@ h1::first-letter {
 }
 
 @media (max-width: 700px) {
-    /* Search - hide margin column */
+    /* Search - hide limit and margin columns */
+    .col-limit,
     .col-margin,
+    .search-results .grid-header > div:nth-child(2),
     .search-results .grid-header > div:last-child {
         display: none;
     }
