@@ -6,23 +6,27 @@
         <h2>About</h2>
 
         <p>
-            GP Kitchen exists because I found most existing websites for GE trading suboptimal for making money.
-            They put too much emphasis on flipping (buying an item and reselling the same item for a profit).
-            In my experience, this is not an effective way to make money with a moderate amount of capital (100M-2B gp).
+            Most websites for profiting with GE trading are wack.
+            All of their power user features are oriented around flipping and speculation (buying and reselling the same item for a profit).
+            But flipping takes too much time and/or capital, and I have no interest in the volatility of speculation.
         </p>
 
         <p>
-            The best way to make money with moderate capital is buying items, turning them into something else, and then selling that.
-            This works well for anything where the processing step is close enough to zero-time that the limiting factor is liquidity or buy limits and not time.
-            It also helps when the processing step has some high skill or quest requirements.
+            For mere mortals, the best way to merch is buying items, turning them into something else, and then selling that.
+            Ordinarily you would consider this a money making method that's measured in hourly profit, e.g. buying raw fish, cooking it, then selling the cooked fish.
+            But there are many things where the processing step is close enough to zero-time that the limiting factor is liquidity or buy limits and not time.
+            (It also helps when the processing step has some high skill or quest requirements.)
+            For these methods, the effective hourly rates can easily dwarf even the most profitable hourly money makers.
         </p>
 
         <p>
-            I couldn't find any suitable sites that can find such profitable opportunities based on live prices.
-            The closest is <a href="https://www.ge-tracker.com/item-conversions/combination-items">GE Tracker's Combination Items</a>, but I found this unsatisfactory.
-            It has loads of combinations that are useless due to low volume, is missing lots of useful combinations, and the list of combinations can't be configured.
-            It also doesn't give good visibility for volume or last trade time.
-            To remedy these issues, I made this website.
+            I couldn't find any good sites to assist with such a trading strategy beyond having 50 tabs open for each item I'm interested in and doing all the numbers in my head.
+            The closest is <a href="https://www.ge-tracker.com/item-conversions/combination-items">GE Tracker's Combination Items</a>, but it leaves a lot to be desired.
+            It has loads of combinations that are useless due to low volume, is missing lots of useful combinations, the list of combinations can't be configured, and it doesn't give good visibility for volume or last trade time.
+        </p>
+
+        <p>
+            So this is what the GP Kitchen is for.
         </p>
     </section>
 
@@ -30,7 +34,7 @@
         <h2>Contact</h2>
 
         <p>
-            If you have ideas for good cookbooks, or just want to chat, feel free to message me on Discord.
+            If you have ideas for good cookbooks, or just want to chat, feel free to message me on Discord or in-game.
             My username is 6 weetbix.
         </p>
     </section>
