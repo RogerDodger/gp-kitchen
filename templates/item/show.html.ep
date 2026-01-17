@@ -310,8 +310,21 @@ function renderChart(data, timestep) {
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: { '5m': 'hour', '1h': 'day', '6h': 'week', '24h': 'month' }[timestep] },
-                    ticks: { color: '#6b7280', maxRotation: 0 },
+                    time: {
+                        unit: { '5m': 'hour', '1h': 'day', '6h': 'week', '24h': 'month' }[timestep],
+                        displayFormats: {
+                            hour: 'd MMM, HH:mm',
+                            day: 'd MMM',
+                            week: 'd MMM',
+                            month: 'MMM yyyy'
+                        }
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: { '5m': 8, '1h': 10, '6h': 12, '24h': 12 }[timestep]
+                    },
                     grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 },
                 y: {

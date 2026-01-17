@@ -37,9 +37,9 @@
                 <img src="/images/items/<%= $input->{item_id} %>.png"
                      alt="<%= $input->{name} %>" class="item-icon"
                      onerror="this.style.display='none'">
-                <a href="/item/<%= $input->{item_id} %>" class="item-name">
-                    <%= $is_coins ? '' : ($input->{quantity} > 1 ? $input->{quantity} . 'x ' : '') %><%= $input->{name} %>
-                </a>
+                <div class="item-name">
+                    <a href="/item/<%= $input->{item_id} %>"><%= $is_coins ? '' : ($input->{quantity} > 1 ? $input->{quantity} . 'x ' : '') %><%= $input->{name} %></a>
+                </div>
                 <span class="item-price">
                     % if ($is_coins) {
                         <span class="price-value"><%= format_gp($input->{quantity}) %></span>
@@ -105,9 +105,9 @@
                 <img src="/images/items/<%= $output->{item_id} %>.png"
                      alt="<%= $output->{name} %>" class="item-icon"
                      onerror="this.style.display='none'">
-                <a href="/item/<%= $output->{item_id} %>" class="item-name">
-                    <%= $is_coins ? '' : ($output->{quantity} > 1 ? $output->{quantity} . 'x ' : '') %><%= $output->{name} %>
-                </a>
+                <div class="item-name">
+                    <a href="/item/<%= $output->{item_id} %>"><%= $is_coins ? '' : ($output->{quantity} > 1 ? $output->{quantity} . 'x ' : '') %><%= $output->{name} %></a>
+                </div>
                 <span class="item-price">
                     % if ($is_coins) {
                         <span class="price-value"><%= format_gp($output->{quantity}) %></span>
