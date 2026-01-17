@@ -339,84 +339,102 @@ function formatGpCompact(num, precision) {
     return num.toString();
 }
 
-// Event handlers (set up once)
+// Shared interaction functions
 const canvas = document.getElementById('price-chart');
+let pointerStartX = null;
+let pointerMoved = false;
 
-canvas.addEventListener('mousedown', (e) => {
-    if (!chart) return;
+function getChartX(clientX) {
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    return clientX - rect.left;
+}
+
+function isInChartArea(x) {
+    if (!chart) return false;
     const chartArea = chart.chartArea;
+    return x >= chartArea.left && x <= chartArea.right;
+}
 
-    if (x >= chartArea.left && x <= chartArea.right) {
-        isDragging = true;
-        dragStart = x;
-        dragEnd = x;
-        selectedRange = null;
-        selectionStats.style.display = 'none';
-        crosshairX = null;
-        tooltip.style.display = 'none';
-        chart.draw();
-    }
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (!chart) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+function clampToChartArea(x) {
     const chartArea = chart.chartArea;
+    return Math.max(chartArea.left, Math.min(chartArea.right, x));
+}
 
-    if (isDragging) {
-        dragEnd = Math.max(chartArea.left, Math.min(chartArea.right, x));
-        chart.draw();
-        return;
-    }
-
-    if (x < chartArea.left || x > chartArea.right) {
-        crosshairX = null;
-        highlightedPoints = { high: null, low: null };
-        tooltip.style.display = 'none';
-        chart.draw();
-        return;
-    }
-
-    crosshairX = x;
-    const xValue = chart.scales.x.getValueForPixel(x);
-
-    highlightedPoints.high = findNearestPoint(chartData.high, xValue);
-    highlightedPoints.low = findNearestPoint(chartData.low, xValue);
-
+function buildTooltipHtml() {
     let html = '';
+    const fmt = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
     if (highlightedPoints.high !== null) {
         const p = chartData.high[highlightedPoints.high];
-        const time = new Date(p.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        const time = new Date(p.x).toLocaleString('en-US', fmt);
         html += `<div style="color:#dc2626;font-weight:600">▲ ${formatGp(p.y)}</div>`;
         html += `<div style="color:#6b7280;font-size:10px">${time} · <strong>${p.vol.toLocaleString()}</strong> vol</div>`;
     }
     if (highlightedPoints.low !== null) {
         const p = chartData.low[highlightedPoints.low];
-        const time = new Date(p.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        const time = new Date(p.x).toLocaleString('en-US', fmt);
         html += `<div style="color:#2563eb;font-weight:600;${highlightedPoints.high !== null ? 'margin-top:6px' : ''}">▼ ${formatGp(p.y)}</div>`;
         html += `<div style="color:#6b7280;font-size:10px">${time} · <strong>${p.vol.toLocaleString()}</strong> vol</div>`;
     }
+    return html;
+}
 
-    tooltip.innerHTML = html;
-    tooltip.style.display = 'block';
-    tooltip.style.left = (e.clientX + 15) + 'px';
-    tooltip.style.top = (e.clientY - 10) + 'px';
-
+function startDrag(x) {
+    pointerStartX = x;
+    pointerMoved = false;
+    isDragging = true;
+    dragStart = x;
+    dragEnd = x;
+    selectedRange = null;
+    selectionStats.style.display = 'none';
+    crosshairX = null;
+    tooltip.style.display = 'none';
     chart.draw();
-});
+}
+
+function updateDrag(x) {
+    if (Math.abs(x - pointerStartX) > 10) {
+        pointerMoved = true;
+        crosshairX = null;
+        tooltip.style.display = 'none';
+    }
+    dragEnd = clampToChartArea(x);
+    chart.draw();
+}
+
+function showTooltipAt(x, screenX, screenY) {
+    crosshairX = x;
+    const xValue = chart.scales.x.getValueForPixel(x);
+    highlightedPoints.high = findNearestPoint(chartData.high, xValue);
+    highlightedPoints.low = findNearestPoint(chartData.low, xValue);
+
+    tooltip.innerHTML = buildTooltipHtml();
+    tooltip.style.display = 'block';
+    if (screenX !== null && screenY !== null) {
+        tooltip.style.left = (screenX + 15) + 'px';
+        tooltip.style.top = (screenY - 10) + 'px';
+    } else {
+        // Fixed position for touch
+        const rect = canvas.getBoundingClientRect();
+        tooltip.style.left = (rect.right - 150) + 'px';
+        tooltip.style.top = (rect.top + 10) + 'px';
+    }
+    chart.draw();
+}
+
+function hideTooltip() {
+    crosshairX = null;
+    highlightedPoints = { high: null, low: null };
+    tooltip.style.display = 'none';
+    chart.draw();
+}
 
 function finishDrag() {
     if (!chart || !isDragging) return;
 
-    // Lock selection if drag was significant (> 5px)
     if (Math.abs(dragEnd - dragStart) > 5) {
         selectedRange = { startX: dragStart, endX: dragEnd };
         justFinishedDrag = true;
 
-        // Calculate and show stats for selected range
         const left = Math.min(dragStart, dragEnd);
         const width = Math.abs(dragEnd - dragStart);
         const minXVal = chart.scales.x.getValueForPixel(left);
@@ -427,7 +445,6 @@ function finishDrag() {
         const highIndices = findPointsInRange(chartData.high, rangeMinX, rangeMaxX);
         const lowIndices = findPointsInRange(chartData.low, rangeMinX, rangeMaxX);
 
-        // Get time range from selected points
         const allTimes = [
             ...highIndices.map(i => chartData.high[i].x),
             ...lowIndices.map(i => chartData.low[i].x)
@@ -444,10 +461,8 @@ function finishDrag() {
             const prices = points.map(p => p.y);
             const totalVol = points.reduce((sum, p) => sum + p.vol, 0);
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-            const min = Math.min(...prices);
-            const max = Math.max(...prices);
             html += `<div style="color:#dc2626;font-weight:600">▲ Avg: ${formatGp(Math.round(avg))}</div>`;
-            html += `<div style="color:#6b7280;font-size:10px">${formatGp(min)} – ${formatGp(max)}</div>`;
+            html += `<div style="color:#6b7280;font-size:10px">${formatGp(Math.min(...prices))} – ${formatGp(Math.max(...prices))}</div>`;
             html += `<div style="color:#374151;font-weight:600;margin-bottom:6px">${totalVol.toLocaleString()} vol</div>`;
         }
 
@@ -456,10 +471,8 @@ function finishDrag() {
             const prices = points.map(p => p.y);
             const totalVol = points.reduce((sum, p) => sum + p.vol, 0);
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-            const min = Math.min(...prices);
-            const max = Math.max(...prices);
             html += `<div style="color:#2563eb;font-weight:600">▼ Avg: ${formatGp(Math.round(avg))}</div>`;
-            html += `<div style="color:#6b7280;font-size:10px">${formatGp(min)} – ${formatGp(max)}</div>`;
+            html += `<div style="color:#6b7280;font-size:10px">${formatGp(Math.min(...prices))} – ${formatGp(Math.max(...prices))}</div>`;
             html += `<div style="color:#374151;font-weight:600">${totalVol.toLocaleString()} vol</div>`;
         }
 
@@ -473,16 +486,80 @@ function finishDrag() {
     chart.draw();
 }
 
+function endInteraction(isTap) {
+    if (isTap && pointerStartX !== null) {
+        isDragging = false;
+        dragStart = null;
+        dragEnd = null;
+        showTooltipAt(pointerStartX, null, null);
+    } else {
+        finishDrag();
+    }
+    pointerStartX = null;
+    pointerMoved = false;
+}
+
+// Mouse events
+canvas.addEventListener('mousedown', (e) => {
+    if (!chart) return;
+    const x = getChartX(e.clientX);
+    if (isInChartArea(x)) startDrag(x);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!chart) return;
+    const x = getChartX(e.clientX);
+
+    if (isDragging) {
+        updateDrag(x);
+        return;
+    }
+
+    if (!isInChartArea(x)) {
+        hideTooltip();
+        return;
+    }
+
+    showTooltipAt(x, e.clientX, e.clientY);
+});
+
 canvas.addEventListener('mouseup', finishDrag);
 document.addEventListener('mouseup', finishDrag);
 
 canvas.addEventListener('mouseleave', () => {
     if (!chart) return;
+    if (!selectedRange && !isDragging) hideTooltip();
+});
 
-    if (!selectedRange && !isDragging) {
-        crosshairX = null;
-        highlightedPoints = { high: null, low: null };
-        tooltip.style.display = 'none';
+// Touch events
+canvas.addEventListener('touchstart', (e) => {
+    if (!chart) return;
+    const x = getChartX(e.touches[0].clientX);
+    if (isInChartArea(x)) {
+        e.preventDefault();
+        startDrag(x);
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (!chart || !isDragging) return;
+    e.preventDefault();
+    updateDrag(getChartX(e.touches[0].clientX));
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    if (!chart || !isDragging) return;
+    e.preventDefault();
+    endInteraction(!pointerMoved);
+});
+
+// Touch outside chart clears tooltip and selection
+document.addEventListener('touchstart', (e) => {
+    if (!chart || e.target === canvas) return;
+    hideTooltip();
+    if (selectedRange) {
+        selectedRange = null;
+        selectionStats.style.display = 'none';
         chart.draw();
     }
 });
@@ -490,8 +567,6 @@ canvas.addEventListener('mouseleave', () => {
 // Click to clear selection
 canvas.addEventListener('click', (e) => {
     if (!chart) return;
-
-    // Don't clear if we just finished dragging
     if (justFinishedDrag) {
         justFinishedDrag = false;
         return;
