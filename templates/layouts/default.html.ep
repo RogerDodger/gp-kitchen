@@ -6,13 +6,19 @@
     <title><%= title %> - GP Kitchen</title>
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="stylesheet" href="/css/app-v4.css">
+    <link rel="stylesheet" href="/css/app-v5.css">
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-left">
             <a href="/" class="nav-brand"><img src="/favicon.png" alt="" class="nav-logo">GP Kitchen</a>
             <a href="/cookbooks">Cookbooks</a>
+            <div class="nav-search">
+                <form action="/search" method="get">
+                    <input type="text" name="q" id="search-input" placeholder="Search items..." value="<%= param('q') // '' %>" autocomplete="off">
+                </form>
+                <div class="search-dropdown" id="search-dropdown"></div>
+            </div>
         </div>
         <div class="nav-right">
             % if (current_user && !is_guest) {
@@ -73,6 +79,100 @@
         setTimeout(function() {
             location.reload();
         }, 300000);
+
+        // Live search
+        (function() {
+            const input = document.getElementById('search-input');
+            const dropdown = document.getElementById('search-dropdown');
+            if (!input || !dropdown) return;
+
+            let debounceTimer;
+            let selectedIndex = -1;
+            let results = [];
+
+            function formatGp(num) {
+                if (!num) return '?';
+                if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                return num.toString();
+            }
+
+            function renderDropdown() {
+                if (results.length === 0) {
+                    dropdown.innerHTML = '<div class="search-dropdown-empty">No items found</div>';
+                    return;
+                }
+
+                let html = results.map((item, i) => `
+                    <a href="/item/${item.id}" class="search-dropdown-item${i === selectedIndex ? ' selected' : ''}">
+                        <img src="/images/items/${item.id}.png" alt="" onerror="this.style.display='none'">
+                        <div class="item-info">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-price">${formatGp(item.high_price)} / ${formatGp(item.low_price)}</div>
+                        </div>
+                    </a>
+                `).join('');
+
+                if (results.length >= 10) {
+                    html += `<a href="/search?q=${encodeURIComponent(input.value)}" class="search-dropdown-more">View all results</a>`;
+                }
+
+                dropdown.innerHTML = html;
+            }
+
+            function search(query) {
+                if (query.length < 2) {
+                    dropdown.classList.remove('active');
+                    return;
+                }
+
+                fetch('/api/search?q=' + encodeURIComponent(query))
+                    .then(r => r.json())
+                    .then(data => {
+                        results = data;
+                        selectedIndex = -1;
+                        renderDropdown();
+                        dropdown.classList.add('active');
+                    });
+            }
+
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => search(this.value), 150);
+            });
+
+            input.addEventListener('keydown', function(e) {
+                if (!dropdown.classList.contains('active')) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
+                    renderDropdown();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    renderDropdown();
+                } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                    e.preventDefault();
+                    window.location.href = '/item/' + results[selectedIndex].id;
+                } else if (e.key === 'Escape') {
+                    dropdown.classList.remove('active');
+                }
+            });
+
+            input.addEventListener('focus', function() {
+                if (this.value.length >= 2 && results.length > 0) {
+                    dropdown.classList.add('active');
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.nav-search')) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        })();
 
         // Grid sorting
         (function() {

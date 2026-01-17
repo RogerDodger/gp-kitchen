@@ -49,7 +49,7 @@
             <div class="item-search-container">
                 <input type="text" id="input-search" placeholder="Search for item..." autocomplete="off">
                 <input type="hidden" name="item_id" id="input-item-id">
-                <div id="input-search-results" class="search-results"></div>
+                <div id="input-search-results" class="item-search-dropdown"></div>
             </div>
             <input type="number" name="quantity" value="1" min="1" style="width: 150px">
             <button type="submit" class="btn btn-primary" disabled id="add-input-btn">Add Input</button>
@@ -107,7 +107,7 @@
             <div class="item-search-container">
                 <input type="text" id="output-search" placeholder="Search for item..." autocomplete="off">
                 <input type="hidden" name="item_id" id="output-item-id">
-                <div id="output-search-results" class="search-results"></div>
+                <div id="output-search-results" class="item-search-dropdown"></div>
             </div>
             <input type="number" name="quantity" value="1" min="1" style="width: 150px">
             <button type="submit" class="btn btn-primary" disabled id="add-output-btn">Add Output</button>
@@ -141,10 +141,10 @@ function setupItemSearch(searchInputId, resultsId, hiddenInputId, submitBtnId) {
                 const items = await response.json();
 
                 if (items.length === 0) {
-                    results.innerHTML = '<div class="search-result-item">No items found</div>';
+                    results.innerHTML = '<div class="item-search-result">No items found</div>';
                 } else {
                     results.innerHTML = items.map(item => `
-                        <div class="search-result-item" data-id="${item.id}" data-name="${item.name}">
+                        <div class="item-search-result" data-id="${item.id}" data-name="${item.name}">
                             <span class="item-name">${item.name}</span>
                             <span class="item-price">${item.high_price ? formatGp(item.high_price) : 'N/A'}</span>
                         </div>
@@ -158,7 +158,7 @@ function setupItemSearch(searchInputId, resultsId, hiddenInputId, submitBtnId) {
     });
 
     results.addEventListener('click', function(e) {
-        const item = e.target.closest('.search-result-item');
+        const item = e.target.closest('.item-search-result');
         if (item && item.dataset.id) {
             searchInput.value = item.dataset.name;
             hiddenInput.value = item.dataset.id;

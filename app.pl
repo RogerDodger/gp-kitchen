@@ -283,6 +283,34 @@ get '/about' => sub ($c) {
     $c->render(template => 'about');
 };
 
+# Search items
+get '/search' => sub ($c) {
+    my $query = $c->param('q') // '';
+    my $items = [];
+    $items = $schema->search_items($query) if length($query) >= 2;
+    $c->stash(query => $query, items => $items);
+    $c->render(template => 'search/index');
+};
+
+# Search API (JSON)
+get '/api/search' => sub ($c) {
+    my $query = $c->param('q') // '';
+    return $c->render(json => []) if length($query) < 2;
+
+    my $items = $schema->search_items($query, 10);
+    my @results = map {
+        my $vol = ($_->{vol_24h_high} // 0) + ($_->{vol_24h_low} // 0);
+        {
+            id         => $_->{id},
+            name       => $_->{name},
+            high_price => $_->{high_price},
+            low_price  => $_->{low_price},
+            volume     => $vol,
+        }
+    } @$items;
+    $c->render(json => \@results);
+};
+
 # Item detail page
 get '/item/:id' => sub ($c) {
     my $id = $c->param('id');

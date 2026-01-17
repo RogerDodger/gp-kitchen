@@ -467,16 +467,20 @@ sub get_item {
 
 sub search_items {
     my ($self, $query, $limit) = @_;
-    $limit //= 20;
     my $sql = q{
-        SELECT i.*, ip.high_price, ip.low_price
+        SELECT i.*, ip.high_price, ip.high_time, ip.low_price, ip.low_time,
+               iv.vol_24h_high, iv.vol_24h_low
         FROM items i
         LEFT JOIN prices.item_prices ip ON i.id = ip.item_id
+        LEFT JOIN prices.item_volumes iv ON i.id = iv.item_id
         WHERE i.name LIKE ?
         ORDER BY i.name
-        LIMIT ?
     };
-    return $self->dbh->selectall_arrayref($sql, { Slice => {} }, "%$query%", $limit);
+    if ($limit) {
+        $sql .= " LIMIT ?";
+        return $self->dbh->selectall_arrayref($sql, { Slice => {} }, "%$query%", $limit);
+    }
+    return $self->dbh->selectall_arrayref($sql, { Slice => {} }, "%$query%");
 }
 
 # =====================================

@@ -21,6 +21,10 @@
     --negative: #9c3d3d;
     --negative-light: #f5dada;
 
+    /* Price arrows */
+    --arrow-buy: #dc2626;
+    --arrow-sell: #2563eb;
+
     /* OSRS gold */
     --gold: #b8860b;
     --cyan: #4a7c8c;
@@ -143,6 +147,121 @@ a:hover {
 
 .nav-user {
     color: var(--text-muted);
+}
+
+/* Nav Search */
+.nav-search {
+    position: relative;
+    margin: 0;
+}
+
+.nav-search form {
+    margin: 0;
+}
+
+.nav-search input {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 180px;
+}
+
+.nav-search input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.nav-search input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Search Dropdown */
+.search-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    min-width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    margin-top: 4px;
+}
+
+.search-dropdown.active {
+    display: block;
+}
+
+.search-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.search-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.search-dropdown-item:hover,
+.search-dropdown-item.selected {
+    background: var(--bg-tertiary);
+}
+
+.search-dropdown-item img {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.search-dropdown-item .item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-dropdown-item .item-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-dropdown-item .item-price {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.search-dropdown-empty {
+    padding: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.search-dropdown-more {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    color: var(--green-link);
+    text-decoration: none;
+    font-size: 0.875rem;
+    border-top: 1px solid var(--border);
+}
+
+.search-dropdown-more:hover {
+    background: var(--bg-tertiary);
 }
 
 /* Container */
@@ -867,7 +986,7 @@ h1::first-letter {
     flex: 1;
 }
 
-.search-results {
+.item-search-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
@@ -882,7 +1001,7 @@ h1::first-letter {
     box-shadow: var(--shadow-md);
 }
 
-.search-result-item {
+.item-search-result {
     padding: 0.5rem 0.75rem;
     cursor: pointer;
     display: flex;
@@ -891,15 +1010,15 @@ h1::first-letter {
     font-size: 0.875rem;
 }
 
-.search-result-item:hover {
+.item-search-result:hover {
     background: var(--bg-tertiary);
 }
 
-.search-result-item .item-name {
+.item-search-result .item-name {
     color: var(--text-primary);
 }
 
-.search-result-item .item-price {
+.item-search-result .item-price {
     color: var(--text-secondary);
     font-size: 0.8125rem;
 }
@@ -1613,6 +1732,161 @@ h1::first-letter {
 }
 
 /* ==========================================================================
+   SEARCH PAGE
+   ========================================================================== */
+
+.search-page h1 {
+    margin-bottom: 1rem;
+}
+
+.search-hint {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.search-count {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+/* Search scroll wrapper */
+.search-scroll {
+    overflow-x: auto;
+    padding-right: 12px; /* space for ribbon overhang */
+}
+
+/* Search Results Grid */
+.search-results {
+    font-size: 1.15em;
+    display: grid;
+    grid-template-columns:
+        [item] minmax(110px, 1fr)
+        [limit] auto
+        [volume] auto
+        [buy] auto
+        [sell] auto
+        [margin] auto;
+}
+
+.search-results .grid-header {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+}
+
+.search-results .grid-header > div {
+    white-space: nowrap;
+}
+
+.search-results .grid-header > div:last-child {
+    position: relative;
+}
+
+.search-results .grid-header > div:last-child::after {
+    content: '';
+    position: absolute;
+    right: -12px;
+    top: 0;
+    height: 100%;
+    width: 0;
+    border-style: solid;
+    border-width: 1.1rem 0 1.1rem 12px;
+    border-color: transparent transparent transparent var(--green-rich);
+}
+
+/* Search Row */
+.search-row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.search-row > :where(div) {
+    padding: 0.2rem 0.4rem;
+    display: flex;
+    align-items: center;
+}
+
+.search-row:hover {
+    background: var(--bg-tertiary);
+    text-decoration: none;
+}
+
+/* Column: Item */
+.col-item {
+    gap: 0.5rem;
+}
+
+.search-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.search-item-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Columns: Numeric */
+.col-limit,
+.col-volume {
+    justify-content: flex-end;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Columns: Buy/Sell */
+.col-buy,
+.col-sell {
+    line-height: 1.2;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.search-price {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.price-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.arrow.buy {
+    color: var(--arrow-buy);
+}
+
+.arrow.sell {
+    color: var(--arrow-sell);
+}
+
+/* Column: Margin */
+.col-margin {
+    justify-content: flex-end;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+}
+
+.col-margin.positive,
+.col-margin.negative {
+    color: inherit;
+    font-weight: inherit;
+}
+
+/* ==========================================================================
    RESPONSIVE MEDIA QUERIES
    All media queries consolidated here, ordered from largest to smallest
    ========================================================================== */
@@ -1828,8 +2102,31 @@ h1::first-letter {
     }
 }
 
-/* Item page hero responsive */
 @media (max-width: 700px) {
+    /* Search - hide margin column */
+    .col-margin,
+    .search-results .grid-header > div:last-child {
+        display: none;
+    }
+
+    /* Search - move ribbon to sell column */
+    .search-results .grid-header > div:nth-child(5) {
+        position: relative;
+    }
+
+    .search-results .grid-header > div:nth-child(5)::after {
+        content: '';
+        position: absolute;
+        right: -12px;
+        top: 0;
+        height: 100%;
+        width: 0;
+        border-style: solid;
+        border-width: 1.1rem 0 1.1rem 12px;
+        border-color: transparent transparent transparent var(--green-rich);
+    }
+
+    /* Item page hero */
     .hero-value,
     .hero-arrow {
         font-size: 1.5rem;
@@ -1838,9 +2135,12 @@ h1::first-letter {
     .hero-prices {
         gap: 1.5rem;
     }
-}
 
-@media (max-width: 660px) {
+    /* Nav search smaller */
+    .nav-search input {
+        width: 140px;
+    }
+
     /* Reduce padding on main containers */
     .navbar {
         padding: 0.75rem 1rem;

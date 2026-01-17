@@ -1,0 +1,105 @@
+% layout 'default';
+% title 'Search Items';
+
+<div class="search-page">
+    <h1>Search Items</h1>
+
+    % if (length($query) < 2) {
+        <p class="search-hint">Enter at least 2 characters to search.</p>
+    % } elsif (@$items == 0) {
+        <p class="search-hint">No items found for "<%= $query %>".</p>
+    % } else {
+        <p class="search-count"><%= scalar @$items %> result<%= @$items == 1 ? '' : 's' %> for "<%= $query %>"</p>
+
+        <div class="search-scroll">
+        <div class="search-results" id="search-results">
+            <div class="grid-header">
+                <div class="sortable" data-sort="name" data-type="text">Item</div>
+                <div class="sortable" data-sort="limit" data-type="number">Limit</div>
+                <div class="sortable" data-sort="volume" data-type="number">Volume</div>
+                <div class="sortable" data-sort="buy" data-type="number">Buy</div>
+                <div class="sortable" data-sort="sell" data-type="number">Sell</div>
+                <div class="sortable" data-sort="margin" data-type="number">Margin</div>
+            </div>
+            % for my $item (@$items) {
+                % my $daily_vol = ($item->{vol_24h_high} // 0) + ($item->{vol_24h_low} // 0);
+                % my $margin = ($item->{high_price} // 0) - ($item->{low_price} // 0);
+                <a href="/item/<%= $item->{id} %>" class="search-row"
+                   data-name="<%= $item->{name} %>"
+                   data-limit="<%= $item->{ge_limit} // 0 %>"
+                   data-volume="<%= $daily_vol %>"
+                   data-buy="<%= $item->{high_price} // 0 %>"
+                   data-sell="<%= $item->{low_price} // 0 %>"
+                   data-margin="<%= $margin %>">
+                    <div class="col-item">
+                        <img src="/images/items/<%= $item->{id} %>.png"
+                             alt="" class="search-icon"
+                             onerror="this.style.display='none'">
+                        <span class="search-item-name"><%= $item->{name} %></span>
+                    </div>
+                    <div class="col-limit"><%= $item->{ge_limit} // '-' %></div>
+                    <div class="col-volume"><%= $daily_vol ? format_vol($daily_vol) : '-' %></div>
+                    <div class="col-buy">
+                        <span class="search-price"><span class="arrow buy">&#9650;</span><%= $item->{high_price} ? format_gp($item->{high_price}) : '-' %></span>
+                        % if ($item->{high_time}) {
+                            <span class="price-time"><%= time_ago($item->{high_time}) %></span>
+                        % }
+                    </div>
+                    <div class="col-sell">
+                        <span class="search-price"><span class="arrow sell">&#9660;</span><%= $item->{low_price} ? format_gp($item->{low_price}) : '-' %></span>
+                        % if ($item->{low_time}) {
+                            <span class="price-time"><%= time_ago($item->{low_time}) %></span>
+                        % }
+                    </div>
+                    <div class="col-margin <%= $margin > 0 ? 'positive' : ($margin < 0 ? 'negative' : '') %>">
+                        <%= $item->{high_price} && $item->{low_price} ? format_gp($margin) : '-' %>
+                    </div>
+                </a>
+            % }
+        </div>
+        </div>
+    % }
+</div>
+
+% content_for 'scripts' => begin
+<script>
+(function() {
+    const grid = document.getElementById('search-results');
+    if (!grid) return;
+
+    grid.querySelectorAll('.grid-header .sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.dataset.sort;
+            const sortType = this.dataset.type;
+            const isAsc = this.classList.contains('sort-asc');
+
+            // Get all rows
+            const rows = Array.from(grid.querySelectorAll('.search-row'));
+
+            // Sort
+            rows.sort((a, b) => {
+                let aVal = a.dataset[sortKey];
+                let bVal = b.dataset[sortKey];
+
+                if (sortType === 'text') {
+                    return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+                } else {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                    return isAsc ? aVal - bVal : bVal - aVal;
+                }
+            });
+
+            // Re-append in new order
+            rows.forEach(row => grid.appendChild(row));
+
+            // Update header classes
+            grid.querySelectorAll('.grid-header .sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            this.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+        });
+    });
+})();
+</script>
+% end
