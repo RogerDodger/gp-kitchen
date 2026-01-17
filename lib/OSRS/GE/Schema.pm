@@ -456,9 +456,10 @@ sub get_item {
     my ($self, $id) = @_;
     my $sql = q{
         SELECT i.*, ip.high_price, ip.high_time, ip.low_price, ip.low_time,
-               ip.avg_high_price, ip.avg_low_price, ip.high_volume, ip.low_volume
+               iv.vol_24h_high, iv.vol_24h_low
         FROM items i
         LEFT JOIN prices.item_prices ip ON i.id = ip.item_id
+        LEFT JOIN prices.item_volumes iv ON i.id = iv.item_id
         WHERE i.id = ?
     };
     return $self->dbh->selectrow_hashref($sql, undef, $id);
@@ -545,41 +546,6 @@ sub bulk_upsert_prices {
     if ($@) {
         $prices_dbh->rollback;
         die "Bulk price update failed: $@";
-    }
-}
-
-sub bulk_upsert_5m_prices {
-    my ($self, $prices) = @_;
-    my $prices_dbh = $self->prices_dbh;
-
-    $prices_dbh->begin_work;
-    eval {
-        my $sql = q{
-            UPDATE item_prices SET
-                avg_high_price = ?,
-                avg_low_price = ?,
-                high_volume = ?,
-                low_volume = ?,
-                updated_at = strftime('%s', 'now')
-            WHERE item_id = ?
-        };
-        my $sth = $prices_dbh->prepare($sql);
-
-        for my $item_id (keys %$prices) {
-            my $p = $prices->{$item_id};
-            $sth->execute(
-                $p->{avgHighPrice},
-                $p->{avgLowPrice},
-                $p->{highPriceVolume},
-                $p->{lowPriceVolume},
-                $item_id
-            );
-        }
-        $prices_dbh->commit;
-    };
-    if ($@) {
-        $prices_dbh->rollback;
-        die "Bulk 5m price update failed: $@";
     }
 }
 
@@ -883,30 +849,43 @@ sub get_price_stats {
 # Volume methods (write to prices_dbh)
 # =====================================
 
-sub upsert_item_volumes {
-    my ($self, $item_id, $volumes) = @_;
+sub upsert_5m_volumes {
+    my ($self, $item_id, $high, $low) = @_;
     my $sql = q{
-        INSERT INTO item_volumes (item_id, vol_5m_high, vol_5m_low, vol_4h_high, vol_4h_low,
-                                  vol_24h_high, vol_24h_low, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
+        INSERT INTO item_volumes (item_id, vol_5m_high, vol_5m_low, updated_at)
+        VALUES (?, ?, ?, strftime('%s', 'now'))
         ON CONFLICT(item_id) DO UPDATE SET
             vol_5m_high = excluded.vol_5m_high,
             vol_5m_low = excluded.vol_5m_low,
+            updated_at = strftime('%s', 'now')
+    };
+    $self->prices_dbh->do($sql, undef, $item_id, $high // 0, $low // 0);
+}
+
+sub upsert_4h_volumes {
+    my ($self, $item_id, $high, $low) = @_;
+    my $sql = q{
+        INSERT INTO item_volumes (item_id, vol_4h_high, vol_4h_low, updated_at)
+        VALUES (?, ?, ?, strftime('%s', 'now'))
+        ON CONFLICT(item_id) DO UPDATE SET
             vol_4h_high = excluded.vol_4h_high,
             vol_4h_low = excluded.vol_4h_low,
+            updated_at = strftime('%s', 'now')
+    };
+    $self->prices_dbh->do($sql, undef, $item_id, $high // 0, $low // 0);
+}
+
+sub upsert_24h_volumes {
+    my ($self, $item_id, $high, $low) = @_;
+    my $sql = q{
+        INSERT INTO item_volumes (item_id, vol_24h_high, vol_24h_low, updated_at)
+        VALUES (?, ?, ?, strftime('%s', 'now'))
+        ON CONFLICT(item_id) DO UPDATE SET
             vol_24h_high = excluded.vol_24h_high,
             vol_24h_low = excluded.vol_24h_low,
             updated_at = strftime('%s', 'now')
     };
-    $self->prices_dbh->do($sql, undef,
-        $item_id,
-        $volumes->{vol_5m_high} // 0,
-        $volumes->{vol_5m_low} // 0,
-        $volumes->{vol_4h_high} // 0,
-        $volumes->{vol_4h_low} // 0,
-        $volumes->{vol_24h_high} // 0,
-        $volumes->{vol_24h_low} // 0,
-    );
+    $self->prices_dbh->do($sql, undef, $item_id, $high // 0, $low // 0);
 }
 
 # =====================================

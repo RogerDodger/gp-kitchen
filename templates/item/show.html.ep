@@ -17,8 +17,9 @@
                 % if ($item->{ge_limit}) {
                     <span class="meta-item">Limit: <strong><%= $item->{ge_limit} %></strong></span>
                 % }
-                % if ($item->{highalch}) {
-                    <span class="meta-item">HA: <strong><%= format_gp($item->{highalch}) %></strong></span>
+                % my $daily_vol = ($item->{vol_24h_high} // 0) + ($item->{vol_24h_low} // 0);
+                % if ($daily_vol) {
+                    <span class="meta-item">Daily volume: <strong><%= format_vol($daily_vol) %></strong></span>
                 % }
                 <span class="meta-item meta-links">
                     <a href="https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=<%= $item->{id} %>" target="_blank">Wiki</a>

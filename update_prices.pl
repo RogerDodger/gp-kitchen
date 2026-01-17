@@ -39,56 +39,63 @@ my $updater = OSRS::GE::PriceUpdater->new(
     log        => \&log_msg,
 );
 
-if ($latest_only) {
-    # Quick update only (prices)
-    log_msg("Running quick update (prices only)...");
+my $update_prices = sub {
+    log_msg("Updating prices...");
     eval { $updater->update_latest };
-    if ($@) {
-        log_msg("ERROR: $@");
-        exit 1;
-    }
-    log_msg("Quick update complete.");
+    log_msg("ERROR: $@") if $@;
+};
+
+my $update_5m_vol = sub {
+    log_msg("Updating 5m volumes...");
+    eval { $updater->update_5m_volumes };
+    log_msg("ERROR: $@") if $@;
+};
+
+my $update_4h_vol = sub {
+    log_msg("Updating 4h volumes...");
+    eval { $updater->update_4h_volumes };
+    log_msg("ERROR: $@") if $@;
+};
+
+my $update_daily = sub {
+    log_msg("Running daily update (mappings + 24h volumes)...");
+    eval { $updater->update_mappings };
+    log_msg("ERROR: $@") if $@;
+    eval { $updater->update_24h_volumes };
+    log_msg("ERROR: $@") if $@;
+};
+
+if ($latest_only) {
+    $update_prices->();
 } elsif ($daemon) {
-    log_msg("Starting daemon mode (prices every 30s, volumes every 5min, full update daily)");
-    $SIG{INT} = $SIG{TERM} = sub { log_msg("Shutting down..."); exit 0; };
+    log_msg("Starting daemon mode (prices every 10s, 5m vol every 5min, 4h vol every 20min, mappings+24h vol every 4h)");
 
-    my $last_full_update = 0;
-    my $last_volume_update = 0;
+    use Mojo::IOLoop;
 
-    while (1) {
-        my $now = time();
+    # Run all updates immediately on start
+    $update_daily->();
+    $update_4h_vol->();
+    $update_5m_vol->();
+    $update_prices->();
 
-        # Full update every 24 hours (for new item mappings)
-        if ($now - $last_full_update >= 86400) {
-            log_msg("Running full update (mappings + prices + volumes)...");
-            eval { $updater->update_all };
-            log_msg("ERROR: $@") if $@;
-            $last_full_update = $now;
-            $last_volume_update = $now;
-        } else {
-            # Volume update every 5 minutes
-            if ($now - $last_volume_update >= 300) {
-                log_msg("Updating volumes...");
-                eval { $updater->update_conversion_volumes };
-                log_msg("ERROR: $@") if $@;
-                $last_volume_update = $now;
-            }
+    # Schedule recurring updates
+    Mojo::IOLoop->recurring(5 => $update_prices);
+    Mojo::IOLoop->recurring(300 => $update_5m_vol);
+    Mojo::IOLoop->recurring(1200 => $update_4h_vol);
+    Mojo::IOLoop->recurring(14400 => $update_daily);
 
-            # Price update every 10 seconds
-            log_msg("Updating prices...");
-            eval { $updater->update_latest };
-            log_msg("ERROR: $@") if $@;
-        }
+    $SIG{INT} = $SIG{TERM} = sub {
+        log_msg("Shutting down...");
+        Mojo::IOLoop->stop;
+    };
 
-        sleep 10;
-    }
+    Mojo::IOLoop->start;
 } else {
     # Single run mode
-    eval { $updater->update_all };
-    if ($@) {
-        log_msg("ERROR: $@");
-        exit 1;
-    }
+    $update_daily->();
+    $update_4h_vol->();
+    $update_5m_vol->();
+    $update_prices->();
 
     my $stats = $schema->get_price_stats;
     log_msg("Stats: $stats->{total_items} items, $stats->{items_with_high} with high price, $stats->{items_with_low} with low price");
