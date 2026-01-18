@@ -1,8 +1,8 @@
 % layout 'default';
-% title 'Search Items';
+% title qq{"$query" Search Results};
 
 <div class="search-page">
-    <h1>Search Items</h1>
+    <h1>Search Results</h1>
 
     % if (length($query) < 2) {
         <p class="search-hint">Enter at least 2 characters to search.</p>

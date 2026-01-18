@@ -6,12 +6,21 @@
         <h2>About</h2>
 
         <p>
-            Most OSRS GE websites' power user features are oriented around flipping and speculation (buying and reselling the same item for a profit), but flipping takes too much time and/or capital, and speculation is a dangerous game.
-            Neither of these are a good trading strategy for the average player looking to grow their bank.
+            Most OSRS GE websites are designed for buying and reselling the same item for a profit,
+            i.e. flipping and speculation.
+            I have not had much success with these trading strategies.
+            Instant flips require a lot of time bankstanding in the GE, and speculation makes your capital illiquid.
         </p>
 
         <p>
-            For mere mortals, the best way to merch is to buy items, turn them into something else, and then sell that at the current market price.
+            (Speculation in particular seems downright awful when there are so many avenues where you can get 2-3% ROI off a single trade.
+            You're going to wait weeks, months, maybe more to... <em>potentially</em> get 2-3x returns at most?
+            All the while that capital could have been getting both better and more reliable returns if it were liquid.
+            I suspect this only makes sense once you're sitting on 20B+ of assets, or aren't actively playing.)
+        </p>
+
+        <p>
+            I've found that the most reliable way to merch is to buy items, turn them into something else, and then sell that at the current market price.
             Ordinarily this kind of money making is measured in hourly profit, e.g. buying raw fish, cooking it, then selling the cooked fish.
             But in some cases the processing step is close enough to zero-time that the limiting factor is liquidity or buy limits and not time.
             (It also helps when the processing step has some high skill or quest requirements.)
