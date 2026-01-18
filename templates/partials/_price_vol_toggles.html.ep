@@ -7,7 +7,6 @@
 
 <div class="price-mode-toggle">
     <label>Price Filter:</label>
-    <button type="button" class="btn btn-toggle price-filter active" data-filter="all">All</button>
     <button type="button" class="btn btn-toggle price-filter" data-filter="low">&lt;10K</button>
     <button type="button" class="btn btn-toggle price-filter" data-filter="mid">10K-1M</button>
     <button type="button" class="btn btn-toggle price-filter" data-filter="high">&gt;1M</button>
@@ -45,11 +44,9 @@
         });
     });
 
-    let currentFilter = 'all';
     document.querySelectorAll('.price-filter').forEach(btn => {
         btn.addEventListener('click', () => {
-            currentFilter = btn.dataset.filter;
-            document.querySelectorAll('.price-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
+            btn.classList.toggle('active');
             applyPriceFilter();
         });
     });
@@ -57,13 +54,23 @@
     function applyPriceFilter() {
         const mode = dashboard.dataset.mode || 'patient';
         const costAttr = mode === 'instant' ? 'costInstant' : 'costPatient';
+        const activeFilters = Array.from(document.querySelectorAll('.price-filter.active')).map(b => b.dataset.filter);
+
         document.querySelectorAll('.recipe-pair').forEach(row => {
             const cost = parseFloat(row.dataset[costAttr]) || 0;
-            let show = true;
-            if (currentFilter === 'low') show = cost < 10000;
-            else if (currentFilter === 'mid') show = cost >= 10000 && cost <= 1000000;
-            else if (currentFilter === 'high') show = cost > 1000000;
-            row.style.display = show ? '' : 'none';
+            // If no filters selected, show all
+            if (activeFilters.length === 0) {
+                row.style.display = '';
+                return;
+            }
+            // Show if matches any selected filter (OR logic)
+            const matches = activeFilters.some(filter => {
+                if (filter === 'low') return cost < 10000;
+                if (filter === 'mid') return cost >= 10000 && cost <= 1000000;
+                if (filter === 'high') return cost > 1000000;
+                return false;
+            });
+            row.style.display = matches ? '' : 'none';
         });
     }
 })();
