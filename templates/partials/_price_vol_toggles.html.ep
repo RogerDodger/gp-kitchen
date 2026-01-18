@@ -6,6 +6,14 @@
 </div>
 
 <div class="price-mode-toggle">
+    <label>Price Filter:</label>
+    <button type="button" class="btn btn-toggle price-filter active" data-filter="all">All</button>
+    <button type="button" class="btn btn-toggle price-filter" data-filter="low">&lt;10K</button>
+    <button type="button" class="btn btn-toggle price-filter" data-filter="mid">10K-1M</button>
+    <button type="button" class="btn btn-toggle price-filter" data-filter="high">&gt;1M</button>
+</div>
+
+<div class="price-mode-toggle">
     <label>Price Mode:</label>
     <button type="button" class="btn btn-toggle mode-toggle" data-mode="instant">Instant</button>
     <button type="button" class="btn btn-toggle mode-toggle active" data-mode="patient">Patient</button>
@@ -25,6 +33,7 @@
             const mode = btn.dataset.mode;
             dashboard.dataset.mode = mode;
             document.querySelectorAll('.mode-toggle').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+            applyPriceFilter();
         });
     });
 
@@ -35,5 +44,27 @@
             document.querySelectorAll('.vol-toggle').forEach(b => b.classList.toggle('active', b.dataset.vol === vol));
         });
     });
+
+    let currentFilter = 'all';
+    document.querySelectorAll('.price-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentFilter = btn.dataset.filter;
+            document.querySelectorAll('.price-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
+            applyPriceFilter();
+        });
+    });
+
+    function applyPriceFilter() {
+        const mode = dashboard.dataset.mode || 'patient';
+        const costAttr = mode === 'instant' ? 'costInstant' : 'costPatient';
+        document.querySelectorAll('.recipe-pair').forEach(row => {
+            const cost = parseFloat(row.dataset[costAttr]) || 0;
+            let show = true;
+            if (currentFilter === 'low') show = cost < 10000;
+            else if (currentFilter === 'mid') show = cost >= 10000 && cost <= 1000000;
+            else if (currentFilter === 'high') show = cost > 1000000;
+            row.style.display = show ? '' : 'none';
+        });
+    }
 })();
 </script>
