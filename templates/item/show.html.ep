@@ -288,9 +288,9 @@ function renderChart(data, timestep) {
             datasets: [
                 {
                     type: 'bar',
-                    label: 'Buy Volume',
-                    data: chartData.volHigh,
-                    backgroundColor: 'rgba(248, 113, 113, 0.30)',
+                    label: 'Sell Volume',
+                    data: chartData.volLow,
+                    backgroundColor: 'lch(40% 80 280 / 0.20)',
                     yAxisID: 'y1',
                     order: 2,
                     stack: 'volume',
@@ -299,9 +299,9 @@ function renderChart(data, timestep) {
                 },
                 {
                     type: 'bar',
-                    label: 'Sell Volume',
-                    data: chartData.volLow,
-                    backgroundColor: 'rgba(59, 130, 246, 0.30)',
+                    label: 'Buy Volume',
+                    data: chartData.volHigh,
+                    backgroundColor: 'lch(40% 80 25 / 0.20)',
                     yAxisID: 'y1',
                     order: 2,
                     stack: 'volume',
