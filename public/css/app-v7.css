@@ -1758,6 +1758,7 @@ h1::first-letter {
 /* Search Results Grid */
 .search-results {
     font-size: 1.15em;
+    max-width: 45em;
     display: grid;
     grid-template-columns:
         [item] minmax(110px, 1fr)
